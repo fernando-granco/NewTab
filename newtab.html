@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Tab</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="bg"></div>
+    <div class="settings-btn" id="settingsBtn">⚙️</div>
+
+    <div class="container">
+        <div id="contentWrapper" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+
+
+            <div id="searchWrapper" class="search-wrapper"
+                style="display:none; text-align: center; margin-bottom: 20px; width: 100%;">
+                <form id="searchForm"
+                    style="display: inline-flex; align-items: center; background: rgba(255,255,255,0.1); border-radius: 50px; padding: 10px 20px; width: 100%; max-width: 600px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);">
+                    <img id="searchIcon" src="" alt="Search"
+                        style="width: 24px; height: 24px; margin-right: 15px; border-radius: 50%;">
+                    <input type="text" id="searchInput" placeholder="Search..."
+                        style="background: transparent; border: none; color: white; font-size: 18px; outline: none; width: 100%;">
+                </form>
+            </div>
+
+            <div id="grid" class="grid"></div>
+
+            <div id="openAllWrapper" class="open-all-wrapper"
+                style="display: none; text-align: center; margin-top: 20px; margin-bottom: 20px;">
+                <button id="openAllBtn" class="primary-btn" style="width: auto; padding: 10px 30px;">Open All
+                    Sites</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <span class="close" id="closeSettings">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab-btn" data-tab="layout">Layout</button>
+                    <button class="tab-btn" data-tab="search">Search</button>
+
+                    <button class="tab-btn" data-tab="background">Background</button>
+                    <button class="tab-btn" data-tab="shortcuts">Shortcuts</button>
+                </div>
+
+                <div id="layout" class="tab-content active">
+                    <div class="setting-item">
+                        <label for="iconSize">Icon Size (ref px): <input type="number" id="iconSizeValInput"
+                                class="val-input" min="50" max="300"></label>
+                        <input type="range" id="iconSize" min="50" max="300" value="100">
+                    </div>
+
+                    <div class="setting-item">
+                        <label for="gridRowGap">Row Gap: <input type="number" id="gridRowGapValInput" class="val-input"
+                                min="0" max="100"></label>
+                        <input type="range" id="gridRowGap" min="0" max="100" value="40">
+                    </div>
+
+                    <div class="setting-item">
+                        <label for="gridColGap">Col Gap: <input type="number" id="gridColGapValInput" class="val-input"
+                                min="0" max="100"></label>
+                        <input type="range" id="gridColGap" min="0" max="100" value="40">
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Grid Vert Position: <input type="number" id="gridOffsetValInput" class="val-input"
+                                min="-500" max="500"></label>
+                        <input type="range" id="gridOffset" min="-500" max="500" value="0">
+                    </div>
+
+                    <div class="setting-item">
+                        <label for="colCount">Columns: <input type="number" id="colCountValInput" class="val-input"
+                                min="1" max="10"></label>
+                        <input type="range" id="colCount" min="1" max="10" value="4">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="showIconBg" checked>
+                            Show Icon Background
+                        </label>
+                    </div>
+
+                    <div class="setting-item" id="iconColorSettings">
+                        <label>Icon Shape</label>
+                        <select id="iconShape">
+                            <option value="circle">Circle</option>
+                            <option value="square">Square</option>
+                        </select>
+
+                        <label style="margin-top: 10px;">Icon Background Color</label>
+                        <input type="color" id="iconBgColor" value="#ffffff">
+                    </div>
+
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="showLabels" checked>
+                            Show Icon Labels
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="openShortcutsNewTab">
+                            Open Shortcuts in New Tab
+                        </label>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="showOpenAll" checked>
+                            Show "Open All" Button
+                        </label>
+                    </div>
+
+                    <div class="setting-item" id="openAllSettings">
+                        <label>Button Text</label>
+                        <input type="text" id="openAllText" value="Open All Sites">
+
+                        <label style="margin-top: 10px;">Button Color</label>
+                        <input type="color" id="openAllColor" value="#3f51b5">
+
+                        <label style="margin-top: 10px;">Button Shape</label>
+                        <select id="openAllShape">
+                            <option value="rounded">Rounded</option>
+                            <option value="square">Square</option>
+                            <option value="pill">Pill (Default)</option>
+                        </select>
+
+                        <label style="margin-top: 10px;">Button Position</label>
+                        <select id="openAllPosition">
+                            <option value="bottom">Bottom</option>
+                            <option value="top">Top</option>
+                        </select>
+                    </div>
+                </div>
+
+
+
+                <div id="search" class="tab-content">
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="showSearch">
+                            Show Search Bar
+                        </label>
+                        <p style="font-size: 12px; color: #888; margin-top: 5px; margin-left: 26px;">
+                            Uses your browser’s default search engine
+                        </p>
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Icon Style</label>
+                        <select id="searchIconStyle">
+                            <option value="glass">Magnifying Glass</option>
+                            <option value="globe">Globe</option>
+                            <option value="dot">Minimal Dot</option>
+                            <option value="none">None</option>
+                            <option value="url">Image URL</option>
+                            <option value="file">Upload Image</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item" id="searchIconUrlGroup" style="display:none;">
+                        <label>Icon Image URL</label>
+                        <input type="url" id="searchIconUrlInput">
+                    </div>
+
+                    <div class="setting-item" id="searchIconFileGroup" style="display:none;">
+                        <label>Upload Icon Image</label>
+                        <input type="file" id="searchIconFileInput" accept="image/*">
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Position</label>
+                        <select id="searchPosition">
+                            <option value="top">Top</option>
+                            <option value="bottom">Bottom</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Vertical Spacing: <input type="number" id="searchMarginValInput" class="val-input"
+                                min="0" max="500"></label>
+                        <input type="range" id="searchMargin" min="0" max="500" value="20">
+                    </div>
+
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="openSearchNewTab">
+                            Open Search Results in New Tab
+                        </label>
+                    </div>
+                </div>
+
+                <div id="background" class="tab-content">
+                    <div class="setting-item">
+                        <label>Background Type</label>
+                        <select id="bgType">
+                            <option value="gradient">Default Gradient</option>
+                            <option value="color">Solid Color</option>
+                            <option value="url">Image URL</option>
+                            <option value="file">Upload Image</option>
+                        </select>
+                    </div>
+                    <div class="setting-item" id="bgColorGroup" style="display:none;">
+                        <label>Color</label>
+                        <input type="color" id="bgColor" value="#1a1a1a">
+                    </div>
+                    <div class="setting-item" id="bgUrlGroup" style="display:none;">
+                        <label>Image URL</label>
+                        <input type="url" id="bgUrlInput">
+                    </div>
+                    <div class="setting-item" id="bgFileGroup" style="display:none;">
+                        <label>Upload Image</label>
+                        <input type="file" id="bgFileInput" accept="image/*">
+                    </div>
+                    <div class="setting-item">
+                        <label>Blur Amount: <input type="number" id="bgBlurValInput" class="val-input" min="0"
+                                max="20"></label>
+                        <input type="range" id="bgBlur" min="0" max="20" value="0">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+                    <h3>Tab Customization</h3>
+                    <div class="setting-item" style="margin-top: 10px;">
+                        <label>Tab Title</label>
+                        <input type="text" id="tabTitleInput" placeholder="New Tab">
+                    </div>
+                    <div class="setting-item">
+                        <label>Tab Icon Source</label>
+                        <select id="tabFaviconSource">
+                            <option value="default">Default Chrome</option>
+                            <option value="color">Simple Color Dot</option>
+                            <option value="url">Image URL</option>
+                            <option value="file">Upload Image</option>
+                        </select>
+                    </div>
+                    <div class="setting-item" id="tabFaviconColorGroup" style="display:none;">
+                        <label>Icon Color</label>
+                        <input type="color" id="tabFaviconColor" value="#3f51b5">
+                    </div>
+                    <div class="setting-item" id="tabFaviconUrlGroup" style="display:none;">
+                        <label>Icon Image URL</label>
+                        <input type="url" id="tabFaviconUrlInput">
+                    </div>
+                    <div class="setting-item" id="tabFaviconFileGroup" style="display:none;">
+                        <label>Upload Icon Image</label>
+                        <input type="file" id="tabFaviconFileInput" accept="image/*">
+                    </div>
+                </div>
+
+                <div id="shortcuts" class="tab-content">
+                    <div class="setting-item" id="importBookmarksSection">
+                        <h3>Import Bookmarks</h3>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <select id="bookmarkFolders" style="flex-grow: 1;">
+                                <option value="">Loading folders...</option>
+                            </select>
+                            <button id="importBookmarksBtn" class="primary-btn"
+                                style="width: auto; margin: 0;">Import</button>
+                        </div>
+                        <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">Select a folder to import links from.
+                        </p>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+
+                    <button id="addShortcutBtn" class="primary-btn">Add New Shortcut</button>
+                    <div id="shortcutsList" class="shortcuts-list">
+                        <!-- List items will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Shortcut Modal -->
+    <div id="shortcutModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="shortcutModalTitle">Add Shortcut</h2>
+                <span class="close" id="closeShortcut">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="shortcutForm">
+                    <input type="hidden" id="editId">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="siteName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>URL</label>
+                        <input type="text" id="siteUrl" required placeholder="https://example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Icon Source</label>
+                        <select id="iconSource">
+                            <option value="favicon">Auto Favicon</option>
+                            <option value="url">Custom Image URL</option>
+                            <option value="file">Upload Image</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="iconUrlGroup" style="display:none;">
+                        <label>Image URL</label>
+                        <input type="url" id="iconUrlInput">
+                    </div>
+                    <div class="form-group" id="iconFileGroup" style="display:none;">
+                        <label>Upload Image</label>
+                        <input type="file" id="iconFileInput" accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label>Icon/Background Color</label>
+                        <input type="color" id="siteColor" value="#ffffff">
+                    </div>
+                    <div class="form-group">
+                        <label
+                            style="display: flex; align-items: center; justify-content: flex-start; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="excludeFromOpenAll">
+                            Exclude from "Open All"
+                        </label>
+                    </div>
+                    <button type="submit" class="primary-btn">Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
