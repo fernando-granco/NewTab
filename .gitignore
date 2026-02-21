@@ -1,0 +1,11 @@
+# .gitignore for Chrome Extension
+.DS_Store
+Thumbs.db
+*.log
+.gemini/
+brain/
+*.tmp
+node_modules/
+dist/
+.env
+*.zip

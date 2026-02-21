@@ -1,0 +1,375 @@
+:root {
+    --icon-size: 100px;
+    --grid-gap: 40px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    /* Background moved to #bg */
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+    background-color: #1a1a1a;
+    /* Fallback */
+}
+
+#bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: radial-gradient(circle at center, #2a2a2a 0%, #111111 100%);
+    background-size: cover;
+    background-position: center;
+    transition: filter 0.2s ease;
+}
+
+.container {
+    width: 100%;
+    /* max-width: 1200px; Removed to allow full width */
+    padding: 2vmin;
+    overflow-y: auto;
+
+    /* Center content vertically but allow scrolling */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* align-items: center; - Grid handles its own centering, but this helps the search wrapper */
+}
+
+.grid {
+    display: grid;
+    /* Use auto-fit with fixed size tracks (var(--icon-size) + padding) to prevent stretching */
+    grid-template-columns: repeat(auto-fit, var(--icon-size));
+    row-gap: var(--grid-row-gap, 40px);
+    column-gap: var(--grid-col-gap, 40px);
+    justify-content: center;
+    /* Centers the whole grid block */
+    justify-items: center;
+    align-items: start;
+    padding: 2vmin;
+}
+
+/* Search Bar */
+.search-wrapper {
+    width: 100%;
+    margin-bottom: 20px;
+    display: none;
+    transition: transform 0.3s ease;
+}
+
+.search-wrapper form {
+    transition: all 0.3s ease;
+}
+
+.search-wrapper input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.search-wrapper input:focus {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Toggle Styles */
+/* Increasing specificity to ensure they override defaults */
+.container .grid.no-icon-bg .icon-circle {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.container .grid.no-labels .label {
+    display: none !important;
+}
+
+
+.icon-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #eeeeee;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    width: var(--icon-size);
+    /* height: auto; - let content define height */
+}
+
+.icon-item:hover {
+    transform: translateY(-5px) scale(1.05);
+    opacity: 1;
+}
+
+.icon-item.dragging {
+    opacity: 0.4;
+    transform: scale(0.9);
+}
+
+.icon-item.drag-over {
+    transform: scale(1.05);
+}
+
+.icon-circle {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1;
+    background-color: var(--icon-bg-color, #ffffff);
+    border-radius: var(--icon-radius, 50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 5px;
+    /* Reduced from 15px to keep them closer */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    position: relative;
+    transition: box-shadow 0.2s ease;
+}
+
+.icon-item:hover .icon-circle {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+}
+
+.icon-circle img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+}
+
+.icon-circle img.full-fill {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.label {
+    /* Responsive font size based on icon size (approx 14/100 ratio) */
+    font-size: calc(var(--icon-size) * 0.14);
+    font-weight: 500;
+    text-align: center;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Settings Button */
+.settings-btn {
+    position: fixed;
+    top: 2vmin;
+    right: 2vmin;
+    font-size: 2.5vmin;
+    cursor: pointer;
+    opacity: 0.3;
+    transition: opacity 0.2s;
+    z-index: 100;
+}
+
+.settings-btn:hover {
+    opacity: 1;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 200;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #2a2a2a;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+    position: absolute;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #3a3a3a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    /* Indicate draggable */
+    user-select: none;
+}
+
+.modal-header h2 {
+    font-size: 18px;
+    margin: 0;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #fff;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #3a3a3a;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-btn.active {
+    color: #fff;
+    border-bottom: 2px solid #fff;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Form Elements */
+.setting-item {
+    margin-bottom: 20px;
+}
+
+.setting-item label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #ccc;
+}
+
+input[type=range] {
+    width: 100%;
+}
+
+.primary-btn {
+    background-color: #3f51b5;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.primary-btn:hover {
+    background-color: #5c6bc0;
+}
+
+/* Shortcuts List */
+.shortcuts-list {
+    margin-top: 15px;
+}
+
+.shortcut-manage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #333;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    /* overflow-hidden usually not needed here if child handles it, but good for safety */
+}
+
+.shortcut-info {
+    font-size: 14px;
+    flex: 1;
+    /* Take available space */
+    min-width: 0;
+    /* Allow shrinking below content size */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 10px;
+}
+
+.shortcut-actions {
+    flex-shrink: 0;
+}
+
+.shortcut-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    margin-left: 10px;
+    opacity: 0.6;
+}
+
+.shortcut-actions button:hover {
+    opacity: 1;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #ccc;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px;
+}
