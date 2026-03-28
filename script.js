@@ -146,16 +146,26 @@ const openAllPositionInput = document.getElementById('openAllPosition');
 const openAllWrapper = document.getElementById('openAllWrapper');
 const openAllBtn = document.getElementById('openAllBtn');
 
+// --- Utilities ---
+
+function debounce(fn, ms = 80) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+    };
+}
+
 // --- Initialization ---
 
 function init() {
     applySettings();
     renderGrid();
     setupEventListeners();
-    loadBookmarkFolders(); // Load folders on init (or lazy load when settings open)
+    loadBookmarkFolders();
 }
 
-// Persist sites and settings to localStorage and trigger re-renders
+// Save to localStorage only (fast, no DOM work)
 function saveState() {
     try {
         localStorage.setItem('sites', JSON.stringify(sites));
@@ -164,6 +174,11 @@ function saveState() {
         console.error("Save error:", e);
         alert("Error saving settings. Local storage might be full.");
     }
+}
+
+// Save + full re-render (for structural changes: add/delete/reorder sites)
+function saveAndRender() {
+    saveState();
     renderGrid();
     applySettings();
 }
@@ -211,41 +226,27 @@ function applySettings() {
     if (openAllBtn) {
         const show = settings.showOpenAll !== false;
         openAllBtn.style.display = show ? 'inline-block' : 'none';
-
-        // Fix: Also show/hide the wrapper
         if (openAllWrapper) openAllWrapper.style.display = show ? 'block' : 'none';
 
         openAllBtn.textContent = settings.openAllText || 'Open All Sites';
         openAllBtn.style.backgroundColor = settings.openAllColor || '#3f51b5';
 
-        let btnRadius = '6px';
-        if (settings.openAllShape === 'square') btnRadius = '0px';
-        if (settings.openAllShape === 'pill') btnRadius = '50px';
+        const btnRadius = settings.openAllShape === 'square' ? '0px' : settings.openAllShape === 'pill' ? '50px' : '6px';
         openAllBtn.style.borderRadius = btnRadius;
 
         if (showOpenAllInput) showOpenAllInput.checked = show;
 
-        // Update position in the DOM
+        // Only reposition if needed
         if (openAllWrapper && contentWrapper) {
-            if (settings.openAllPosition === 'top') {
+            const isTop = settings.openAllPosition === 'top';
+            const currentlyTop = openAllWrapper.nextSibling === grid;
+            if (isTop && !currentlyTop) {
                 contentWrapper.insertBefore(openAllWrapper, grid);
-            } else {
+            } else if (!isTop && currentlyTop) {
                 contentWrapper.appendChild(openAllWrapper);
             }
         }
-
-        // Ensure listener is attached
-        openAllBtn.onclick = () => {
-            const sitesToOpen = sites.filter(s => !s.excludeFromOpenAll);
-            if (sitesToOpen.length === 0) {
-                alert("No sites to open (all are excluded or list is empty).");
-                return;
-            }
-            if (sitesToOpen.length > 5 && !confirm(`Open ${sitesToOpen.length} sites?`)) return;
-            sitesToOpen.forEach(site => window.open(site.url, '_blank'));
-        };
     }
-
 
 
     // Background
@@ -298,10 +299,6 @@ function applySettings() {
 
     showLabelsInput.checked = settings.showLabels;
 
-    if (showOpenAllInput) {
-        showOpenAllInput.onchange = (e) => { settings.showOpenAll = e.target.checked; saveState(); };
-    }
-
     if (openAllTextInput) openAllTextInput.value = settings.openAllText || 'Open All Sites';
     if (openAllColorInput) openAllColorInput.value = settings.openAllColor || '#3f51b5';
     if (openAllShapeInput) openAllShapeInput.value = settings.openAllShape || 'pill';
@@ -309,15 +306,11 @@ function applySettings() {
 
 
     if (showSearchInput) showSearchInput.checked = settings.showSearch;
-    if (showSearchInput) showSearchInput.checked = settings.showSearch;
     if (searchIconStyleInput) searchIconStyleInput.value = settings.searchIconStyle || 'glass';
     if (searchIconUrlInput) searchIconUrlInput.value = (settings.searchIconStyle === 'url') ? settings.searchIconValue : '';
     if (searchPositionInput) searchPositionInput.value = settings.searchPosition || 'top';
     if (openSearchNewTabInput) openSearchNewTabInput.checked = settings.openSearchNewTab;
-
     updateSearchIconInputsDisplay();
-    if (searchPositionInput) searchPositionInput.value = settings.searchPosition || 'top';
-    if (openSearchNewTabInput) openSearchNewTabInput.checked = settings.openSearchNewTab;
 
     if (openShortcutsNewTabInput) openShortcutsNewTabInput.checked = settings.openShortcutsNewTab;
 
@@ -336,11 +329,9 @@ function applySettings() {
     if (searchWrapper) {
         if (settings.showSearch) {
             searchWrapper.style.display = 'block';
-            searchWrapper.style.display = 'block';
             searchWrapper.style.position = 'relative';
             searchWrapper.style.width = '100%';
             searchWrapper.style.margin = '0';
-
 
             // Icon Style Logic
             if (searchIcon) {
@@ -439,16 +430,14 @@ function updateBgInputsDisplay() {
 
 // --- GUI Rendering ---
 function renderGrid() {
-    grid.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     sites.forEach((site, index) => {
         const a = document.createElement('a');
         a.href = site.url;
         a.className = 'icon-item';
         a.title = site.name;
-
         a.draggable = true;
         a.dataset.index = index;
-
         a.target = settings.openShortcutsNewTab ? '_blank' : '_self';
 
         // Drag Events
@@ -462,18 +451,17 @@ function renderGrid() {
         const circle = document.createElement('div');
         circle.className = 'icon-circle';
 
-        // Apply styles (custom color or global default)
         if (site.color && site.color.toLowerCase() !== '#ffffff') {
             circle.style.backgroundColor = site.color;
         }
 
-        // Icon Logic
         const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.draggable = false;
         if ((site.iconSource === 'url' || site.iconSource === 'file') && site.iconValue) {
             img.src = site.iconValue;
             img.className = 'full-fill';
         } else {
-            // Default to favicon
             img.src = `https://www.google.com/s2/favicons?domain=${site.url}&sz=128`;
         }
         img.alt = site.name;
@@ -486,8 +474,10 @@ function renderGrid() {
 
         a.appendChild(circle);
         a.appendChild(label);
-        grid.appendChild(a);
+        fragment.appendChild(a);
     });
+    grid.innerHTML = '';
+    grid.appendChild(fragment);
 }
 
 // --- Drag and Drop Handlers ---
@@ -517,21 +507,19 @@ function handleDragLeave(e) {
 }
 
 function handleDrop(e) {
-    if (e.stopPropagation) {
-        e.stopPropagation(); // stops the browser from redirecting.
-    }
+    e.preventDefault();
+    e.stopPropagation();
 
     if (dragSrcEl !== this) {
         const srcIndex = parseInt(e.dataTransfer.getData('text/plain'));
         const targetIndex = parseInt(this.dataset.index);
 
         if (!isNaN(srcIndex) && !isNaN(targetIndex)) {
-            // Reorder array
             const item = sites[srcIndex];
-            sites.splice(srcIndex, 1); // remove from old
-            sites.splice(targetIndex, 0, item); // insert at new
+            sites.splice(srcIndex, 1);
+            sites.splice(targetIndex, 0, item);
 
-            saveState(); // Will re-render grid
+            saveAndRender();
         }
     }
     return false;
@@ -647,7 +635,7 @@ function importBookmarks() {
         });
 
         if (importedCount > 0) {
-            saveState();
+            saveAndRender();
             renderShortcutsList();
             alert(`Imported ${importedCount} bookmarks!`);
         } else {
@@ -662,13 +650,10 @@ function setupEventListeners() {
     // Settings Modal
     settingsBtn.onclick = () => {
         settingsModal.style.display = 'flex';
-        // Reset position on open if needed, or keep last position
         renderShortcutsList();
     };
     closeSettings.onclick = () => settingsModal.style.display = 'none';
 
-    // Updated: Only close if clicking the background (not the modal itself)
-    // AND IF not currently dragging.
     window.onclick = (e) => {
         if (e.target === settingsModal) settingsModal.style.display = 'none';
         if (e.target === shortcutModal) shortcutModal.style.display = 'none';
@@ -681,17 +666,15 @@ function setupEventListeners() {
     let startX, startY, initialLeft, initialTop;
 
     modalHeader.onmousedown = (e) => {
-        // Prevent default to avoid text selection etc
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
 
-        // Get current position (or computed style if not set yet)
+        // Get current position
         const rect = modalContent.getBoundingClientRect();
         initialLeft = rect.left;
         initialTop = rect.top;
-
-        // Ensure it acts absolute if it wasn't already positioned manually
+        // Switch to absolute positioning on first drag
         modalContent.style.margin = '0';
         modalContent.style.left = `${initialLeft}px`;
         modalContent.style.top = `${initialTop}px`;
@@ -721,7 +704,13 @@ function setupEventListeners() {
         };
     });
 
-    // Helper to sync slider and number input
+    // Debounced save for rapid-fire inputs (sliders, color pickers)
+    const debouncedSaveAndApply = debounce(() => {
+        saveState();
+        applySettings();
+    }, 100);
+
+    // Helper to sync slider and number input with immediate visual feedback
     const setupSync = (sliderId, numId, settingKey, isInt = true) => {
         const slider = document.getElementById(sliderId);
         const num = document.getElementById(numId);
@@ -731,21 +720,19 @@ function setupEventListeners() {
             const val = isInt ? parseInt(e.target.value) : e.target.value;
             settings[settingKey] = val;
             num.value = val;
-            saveState();
+            applySettings(); // Immediate visual update (CSS vars only, cheap)
+            debouncedSaveAndApply(); // Debounced localStorage write
         };
 
         num.oninput = (e) => {
             let val = isInt ? parseInt(e.target.value) : e.target.value;
-            // validate constraints
             if (slider.min && val < parseInt(slider.min)) val = parseInt(slider.min);
             if (slider.max && val > parseInt(slider.max)) val = parseInt(slider.max);
-
             settings[settingKey] = val;
             slider.value = val;
-            saveState();
+            applySettings();
+            debouncedSaveAndApply();
         };
-
-        // Initial sync handled in updateUI usually, but good to have binding
     };
 
     // Layout Settings
@@ -753,34 +740,44 @@ function setupEventListeners() {
     setupSync('gridRowGap', 'gridRowGapValInput', 'gridRowGap');
     setupSync('gridColGap', 'gridColGapValInput', 'gridColGap');
     setupSync('gridOffset', 'gridOffsetValInput', 'gridVerticalOffset');
-
-    // Columns
     setupSync('colCount', 'colCountValInput', 'colCount');
 
+    showIconBgInput.onchange = (e) => { settings.showIconBg = e.target.checked; saveState(); applySettings(); };
+    if (iconShapeInput) iconShapeInput.onchange = (e) => { settings.iconShape = e.target.value; saveState(); applySettings(); };
+    if (iconBgColorInput) iconBgColorInput.oninput = (e) => { settings.iconBgColor = e.target.value; applySettings(); debouncedSaveAndApply(); };
 
-
-    showIconBgInput.onchange = (e) => { settings.showIconBg = e.target.checked; saveState(); };
-    if (iconShapeInput) iconShapeInput.onchange = (e) => { settings.iconShape = e.target.value; saveState(); };
-    if (iconBgColorInput) iconBgColorInput.oninput = (e) => { settings.iconBgColor = e.target.value; saveState(); };
-
-    showLabelsInput.onchange = (e) => { settings.showLabels = e.target.checked; saveState(); };
+    showLabelsInput.onchange = (e) => { settings.showLabels = e.target.checked; saveState(); applySettings(); };
 
     if (showOpenAllInput) {
-        showOpenAllInput.onchange = (e) => { settings.showOpenAll = e.target.checked; saveState(); };
+        showOpenAllInput.onchange = (e) => { settings.showOpenAll = e.target.checked; saveState(); applySettings(); };
     }
 
-    if (openAllTextInput) openAllTextInput.oninput = (e) => { settings.openAllText = e.target.value; saveState(); };
-    if (openAllColorInput) openAllColorInput.oninput = (e) => { settings.openAllColor = e.target.value; saveState(); };
-    if (openAllShapeInput) openAllShapeInput.onchange = (e) => { settings.openAllShape = e.target.value; saveState(); };
-    if (openAllPositionInput) openAllPositionInput.onchange = (e) => { settings.openAllPosition = e.target.value; saveState(); };
+    // Open All Button click handler (set once, not on every applySettings)
+    if (openAllBtn) {
+        openAllBtn.onclick = () => {
+            const sitesToOpen = sites.filter(s => !s.excludeFromOpenAll);
+            if (sitesToOpen.length === 0) {
+                alert("No sites to open (all are excluded or list is empty).");
+                return;
+            }
+            if (sitesToOpen.length > 5 && !confirm(`Open ${sitesToOpen.length} sites?`)) return;
+            sitesToOpen.forEach(site => window.open(site.url, '_blank'));
+        };
+    }
+
+    if (openAllTextInput) openAllTextInput.oninput = (e) => { settings.openAllText = e.target.value; saveState(); applySettings(); };
+    if (openAllColorInput) openAllColorInput.oninput = (e) => { settings.openAllColor = e.target.value; applySettings(); debouncedSaveAndApply(); };
+    if (openAllShapeInput) openAllShapeInput.onchange = (e) => { settings.openAllShape = e.target.value; saveState(); applySettings(); };
+    if (openAllPositionInput) openAllPositionInput.onchange = (e) => { settings.openAllPosition = e.target.value; saveState(); applySettings(); };
 
     // Search Settings
-    if (showSearchInput) showSearchInput.onchange = (e) => { settings.showSearch = e.target.checked; saveState(); };
+    if (showSearchInput) showSearchInput.onchange = (e) => { settings.showSearch = e.target.checked; saveState(); applySettings(); };
     if (searchIconStyleInput) {
         searchIconStyleInput.onchange = (e) => {
             settings.searchIconStyle = e.target.value;
-            settings.searchIconValue = ''; // Reset when source changes
+            settings.searchIconValue = '';
             saveState();
+            applySettings();
             updateSearchIconInputsDisplay();
         };
     }
@@ -789,6 +786,7 @@ function setupEventListeners() {
             if (settings.searchIconStyle === 'url') {
                 settings.searchIconValue = e.target.value;
                 saveState();
+                applySettings();
             }
         };
     }
@@ -798,6 +796,7 @@ function setupEventListeners() {
                 try {
                     settings.searchIconValue = await readFileAsDataURL(e.target.files[0]);
                     saveState();
+                    applySettings();
                 } catch (err) {
                     console.error("Error reading search icon file", err);
                     alert("Failed to load icon. It might be too large.");
@@ -805,7 +804,7 @@ function setupEventListeners() {
             }
         };
     }
-    if (searchPositionInput) searchPositionInput.onchange = (e) => { settings.searchPosition = e.target.value; saveState(); };
+    if (searchPositionInput) searchPositionInput.onchange = (e) => { settings.searchPosition = e.target.value; saveState(); applySettings(); };
     setupSync('searchMargin', 'searchMarginValInput', 'searchMargin');
     if (openSearchNewTabInput) openSearchNewTabInput.onchange = (e) => { settings.openSearchNewTab = e.target.checked; saveState(); };
 
@@ -840,13 +839,14 @@ function setupEventListeners() {
     }
     bgTypeInput.onchange = (e) => {
         settings.bgType = e.target.value;
-        settings.bgValue = ''; // reset value on type change
+        settings.bgValue = '';
         saveState();
+        applySettings();
         updateBgInputsDisplay();
     };
 
-    bgColorInput.oninput = (e) => { settings.bgValue = e.target.value; saveState(); };
-    bgUrlInput.oninput = (e) => { settings.bgValue = e.target.value; saveState(); };
+    bgColorInput.oninput = (e) => { settings.bgValue = e.target.value; applySettings(); debouncedSaveAndApply(); };
+    bgUrlInput.oninput = (e) => { settings.bgValue = e.target.value; saveState(); applySettings(); };
     setupSync('bgBlur', 'bgBlurValInput', 'bgBlur');
 
     bgFileInput.onchange = async (e) => {
@@ -854,6 +854,7 @@ function setupEventListeners() {
             try {
                 settings.bgValue = await readFileAsDataURL(e.target.files[0]);
                 saveState();
+                applySettings();
             } catch (err) {
                 console.error("Error reading background file", err);
                 alert("Failed to load image. It might be too large for local storage.");
@@ -869,16 +870,17 @@ function setupEventListeners() {
         tabTitleInput.oninput = (e) => {
             settings.tabTitle = e.target.value;
             document.title = e.target.value || 'New Tab';
-            saveState();
+            debouncedSaveAndApply();
         };
     }
 
     if (tabFaviconSourceInput) {
         tabFaviconSourceInput.onchange = (e) => {
             settings.tabFaviconSource = e.target.value;
-            settings.tabFaviconValue = ''; // Reset when source changes
+            settings.tabFaviconValue = '';
             if (e.target.value === 'color') settings.tabFaviconValue = '#3f51b5';
             saveState();
+            applySettings();
             updateTabFaviconInputsDisplay();
         };
     }
@@ -887,7 +889,8 @@ function setupEventListeners() {
         tabFaviconColorInput.oninput = (e) => {
             if (settings.tabFaviconSource === 'color') {
                 settings.tabFaviconValue = e.target.value;
-                saveState();
+                applySettings();
+                debouncedSaveAndApply();
             }
         };
     }
@@ -897,6 +900,7 @@ function setupEventListeners() {
             if (settings.tabFaviconSource === 'url') {
                 settings.tabFaviconValue = e.target.value;
                 saveState();
+                applySettings();
             }
         };
     }
@@ -907,6 +911,7 @@ function setupEventListeners() {
                 try {
                     settings.tabFaviconValue = await readFileAsDataURL(e.target.files[0]);
                     saveState();
+                    applySettings();
                 } catch (err) {
                     console.error("Error reading favicon file", err);
                     alert("Failed to load icon. It might be too large.");
@@ -967,7 +972,7 @@ function setupEventListeners() {
             sites.push(newSite);
         }
 
-        saveState();
+        saveAndRender();
         shortcutModal.style.display = 'none';
         renderShortcutsList();
     };
@@ -986,7 +991,7 @@ window.editShortcut = (id) => {
 
 window.deleteShortcut = (id) => {
     sites = sites.filter(s => String(s.id) !== String(id));
-    saveState();
+    saveAndRender();
     renderShortcutsList();
 };
 

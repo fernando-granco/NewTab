@@ -52,12 +52,10 @@ body {
 
 .grid {
     display: grid;
-    /* Use auto-fit with fixed size tracks (var(--icon-size) + padding) to prevent stretching */
     grid-template-columns: repeat(auto-fit, var(--icon-size));
     row-gap: var(--grid-row-gap, 40px);
     column-gap: var(--grid-col-gap, 40px);
     justify-content: center;
-    /* Centers the whole grid block */
     justify-items: center;
     align-items: start;
     padding: 2vmin;
@@ -103,7 +101,6 @@ body {
     color: #eeeeee;
     transition: transform 0.2s ease, opacity 0.2s ease;
     width: var(--icon-size);
-    /* height: auto; - let content define height */
 }
 
 .icon-item:hover {
@@ -130,7 +127,6 @@ body {
     justify-content: center;
     align-items: center;
     margin-bottom: 5px;
-    /* Reduced from 15px to keep them closer */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     overflow: hidden;
     position: relative;
