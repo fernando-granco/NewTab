@@ -142,8 +142,8 @@ body {
 }
 
 .icon-circle img {
-    width: 60%;
-    height: 60%;
+    width: 80%;
+    height: 80%;
     object-fit: contain;
 }
 
@@ -159,9 +159,7 @@ body {
     object-fit: contain;
 }
 
-.container .grid.no-icon-bg .icon-circle img.full-fill, 
-.container .grid.no-icon-bg .icon-circle img.dash-icon,
-.container .grid.no-icon-bg .icon-circle img.dash-icon {
+.container .grid.no-icon-bg .icon-circle img {
     width: 100%;
     height: 100%;
 }
