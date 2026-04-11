@@ -57,6 +57,7 @@ const closeSettings = document.getElementById('closeSettings');
 const shortcutModal = document.getElementById('shortcutModal');
 const closeShortcut = document.getElementById('closeShortcut');
 const addShortcutBtn = document.getElementById('addShortcutBtn');
+const autoMatchIconsBtn = document.getElementById('autoMatchIconsBtn');
 const shortcutsList = document.getElementById('shortcutsList');
 const contentWrapper = document.getElementById('contentWrapper');
 
@@ -124,6 +125,8 @@ const shortcutForm = document.getElementById('shortcutForm');
 const siteNameInput = document.getElementById('siteName');
 const siteUrlInput = document.getElementById('siteUrl');
 const iconSourceInput = document.getElementById('iconSource');
+const iconDashboardGroup = document.getElementById('iconDashboardGroup');
+const iconDashboardInput = document.getElementById('iconDashboardInput');
 const iconUrlGroup = document.getElementById('iconUrlGroup');
 const iconFileGroup = document.getElementById('iconFileGroup');
 const iconUrlInput = document.getElementById('iconUrlInput');
@@ -132,6 +135,11 @@ const siteColorInput = document.getElementById('siteColor');
 const excludeFromOpenAllInput = document.getElementById('excludeFromOpenAll');
 const editIdInput = document.getElementById('editId');
 const shortcutModalTitle = document.getElementById('shortcutModalTitle');
+
+// Inputs - Backup
+const exportDataBtn = document.getElementById('exportDataBtn');
+const importDataBtn = document.getElementById('importDataBtn');
+const importDataInput = document.getElementById('importDataInput');
 
 // Inputs - Bookmarks
 const bookmarkFoldersSort = document.getElementById('bookmarkFolders');
@@ -440,12 +448,9 @@ function renderGrid() {
         a.dataset.index = index;
         a.target = settings.openShortcutsNewTab ? '_blank' : '_self';
 
-        // Drag Events
+        // Drag Events (live reorder)
         a.addEventListener('dragstart', handleDragStart);
         a.addEventListener('dragover', handleDragOver);
-        a.addEventListener('drop', handleDrop);
-        a.addEventListener('dragenter', handleDragEnter);
-        a.addEventListener('dragleave', handleDragLeave);
         a.addEventListener('dragend', handleDragEnd);
 
         const circle = document.createElement('div');
@@ -461,6 +466,9 @@ function renderGrid() {
         if ((site.iconSource === 'url' || site.iconSource === 'file') && site.iconValue) {
             img.src = site.iconValue;
             img.className = 'full-fill';
+        } else if (site.iconSource === 'dashboardicons' && site.iconValue) {
+            img.src = `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/${site.iconValue}.svg`;
+            img.className = 'dash-icon';
         } else {
             img.src = `https://www.google.com/s2/favicons?domain=${site.url}&sz=128`;
         }
@@ -480,57 +488,54 @@ function renderGrid() {
     grid.appendChild(fragment);
 }
 
-// --- Drag and Drop Handlers ---
-let dragSrcEl = null;
+// --- Drag and Drop — Live Reorder ---
+let dragSourceIndex = null;
 
 function handleDragStart(e) {
-    dragSrcEl = this;
+    dragSourceIndex = parseInt(this.dataset.index);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', this.dataset.index);
-    this.classList.add('dragging');
+    // Required for Firefox
+    e.dataTransfer.setData('text/plain', dragSourceIndex);
+
+    // Delay adding class so the drag image isn't affected
+    requestAnimationFrame(() => {
+        this.classList.add('dragging');
+    });
 }
 
 function handleDragOver(e) {
-    if (e.preventDefault) {
-        e.preventDefault(); // Necessary. Allows us to drop.
-    }
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function handleDragEnter(e) {
-    this.classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-    this.classList.remove('drag-over');
-}
-
-function handleDrop(e) {
     e.preventDefault();
-    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
 
-    if (dragSrcEl !== this) {
-        const srcIndex = parseInt(e.dataTransfer.getData('text/plain'));
-        const targetIndex = parseInt(this.dataset.index);
+    if (dragSourceIndex === null) return;
 
-        if (!isNaN(srcIndex) && !isNaN(targetIndex)) {
-            const item = sites[srcIndex];
-            sites.splice(srcIndex, 1);
-            sites.splice(targetIndex, 0, item);
+    const targetIndex = parseInt(this.dataset.index);
+    if (isNaN(targetIndex) || targetIndex === dragSourceIndex) return;
 
-            saveAndRender();
-        }
+    // Move the item in the array
+    const [item] = sites.splice(dragSourceIndex, 1);
+    sites.splice(targetIndex, 0, item);
+
+    // Update source index to new position
+    dragSourceIndex = targetIndex;
+
+    // Re-render grid with new order (fast — uses DocumentFragment)
+    renderGrid();
+
+    // Re-apply dragging style to the moved element
+    const items = grid.querySelectorAll('.icon-item');
+    if (items[targetIndex]) {
+        items[targetIndex].classList.add('dragging');
     }
-    return false;
 }
 
 function handleDragEnd(e) {
-    this.classList.remove('dragging');
+    dragSourceIndex = null;
     const items = grid.querySelectorAll('.icon-item');
-    items.forEach(item => {
-        item.classList.remove('drag-over');
-    });
+    items.forEach(item => item.classList.remove('dragging'));
+
+    // Persist final order
+    saveState();
 }
 
 function renderShortcutsList() {
@@ -865,6 +870,53 @@ function setupEventListeners() {
     // Bookmarks Import
     importBookmarksBtn.onclick = importBookmarks;
 
+    // Backup & Restore
+    if (exportDataBtn) {
+        exportDataBtn.onclick = () => {
+            // Note: Since sites or settings might contain stringified large base64 images, 
+            // json size shouldn't be excessively large, but object URL is cleaner than data URI for large sizes
+            const dataStr = JSON.stringify({ sites, settings });
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `NewTab_Backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    }
+
+    if (importDataBtn) {
+        importDataBtn.onclick = () => importDataInput.click();
+    }
+
+    if (importDataInput) {
+        importDataInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.sites && data.settings) {
+                        sites = data.sites;
+                        settings = data.settings;
+                        saveAndRender();
+                        alert("Configuration imported successfully!");
+                    } else {
+                        alert("Invalid backup file format.");
+                    }
+                } catch (err) {
+                    alert("Error parsing backup file.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // Reset input
+        };
+    }
+
     // Tab Customization Listeners
     if (tabTitleInput) {
         tabTitleInput.oninput = (e) => {
@@ -926,12 +978,72 @@ function setupEventListeners() {
     addShortcutBtn.onclick = () => {
         openShortcutModal();
     };
+
+    if (autoMatchIconsBtn) {
+        autoMatchIconsBtn.onclick = async () => {
+            const btn = autoMatchIconsBtn;
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = 'Matching...';
+
+            try {
+                const res = await fetch('https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/tree.json');
+                const tree = await res.json();
+                
+                // tree.svg is an array of file names: ["youtube.svg", "reddit.svg", "reddit-light.svg"]
+                const availableIcons = (tree.svg || []).map(name => name.replace('.svg', ''));
+
+                let matchesCount = 0;
+
+                sites.forEach(site => {
+                    // Only upgrade simple favicons or existing dashboard icons to see if there's a better match
+                    if (site.iconSource !== 'favicon' && site.iconSource !== 'dashboardicons') return;
+
+                    const searchTarget = site.name.toLowerCase().trim();
+                    let bestMatch = null;
+                    const kebabName = searchTarget.replace(/\s+/g, '-');
+                    
+                    if (availableIcons.includes(kebabName)) {
+                        bestMatch = kebabName;
+                    } else if (availableIcons.includes(searchTarget)) {
+                        bestMatch = searchTarget;
+                    } else {
+                        // Simple fallback: maybe there's a -light variant if base doesn't exist
+                        const fallback = availableIcons.find(icon => icon === `${kebabName}-light` || icon === `${kebabName}-dark`);
+                        if (fallback) bestMatch = fallback;
+                    }
+
+                    if (bestMatch && (site.iconSource !== 'dashboardicons' || site.iconValue !== bestMatch)) {
+                        site.iconSource = 'dashboardicons';
+                        site.iconValue = bestMatch;
+                        matchesCount++;
+                    }
+                });
+
+                if (matchesCount > 0) {
+                    saveAndRender();
+                    renderShortcutsList();
+                    alert(`Successfully auto-matched ${matchesCount} icons!`);
+                } else {
+                    alert("No new icon matches found.");
+                }
+            } catch (err) {
+                console.error("Auto-match failed:", err);
+                alert("Failed to fetch icon database. Please try again later.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        };
+    }
+
     closeShortcut.onclick = () => shortcutModal.style.display = 'none';
 
     iconSourceInput.onchange = () => {
         const val = iconSourceInput.value;
         iconUrlGroup.style.display = val === 'url' ? 'block' : 'none';
         iconFileGroup.style.display = val === 'file' ? 'block' : 'none';
+        if (iconDashboardGroup) iconDashboardGroup.style.display = val === 'dashboardicons' ? 'block' : 'none';
     };
 
     shortcutForm.onsubmit = async (e) => {
@@ -941,6 +1053,8 @@ function setupEventListeners() {
         let iconValue = '';
         if (iconSourceInput.value === 'url') {
             iconValue = iconUrlInput.value;
+        } else if (iconSourceInput.value === 'dashboardicons') {
+            iconValue = iconDashboardInput.value.trim().toLowerCase();
         } else if (iconSourceInput.value === 'file' && iconFileInput.files[0]) {
             iconValue = await readFileAsDataURL(iconFileInput.files[0]);
         } else if (editIdInput.value) {
@@ -1005,6 +1119,7 @@ function openShortcutModal(site = null) {
         siteColorInput.value = site.color || '#ffffff';
         iconSourceInput.value = site.iconSource || 'favicon';
         iconUrlInput.value = site.iconSource === 'url' ? site.iconValue : '';
+        if (iconDashboardInput) iconDashboardInput.value = site.iconSource === 'dashboardicons' ? site.iconValue : '';
         excludeFromOpenAllInput.checked = !!site.excludeFromOpenAll;
     } else {
         shortcutModalTitle.innerText = "Add Shortcut";

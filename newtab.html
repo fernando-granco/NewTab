@@ -51,6 +51,7 @@
 
                     <button class="tab-btn" data-tab="background">Background</button>
                     <button class="tab-btn" data-tab="shortcuts">Shortcuts</button>
+                    <button class="tab-btn" data-tab="backup">Data</button>
                 </div>
 
                 <div id="layout" class="tab-content active">
@@ -278,9 +279,33 @@
                     </div>
                     <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
 
-                    <button id="addShortcutBtn" class="primary-btn">Add New Shortcut</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="addShortcutBtn" class="primary-btn">Add New Shortcut</button>
+                        <button id="autoMatchIconsBtn" class="primary-btn" style="background-color: #f57c00;">Auto-Match Icons</button>
+                    </div>
                     <div id="shortcutsList" class="shortcuts-list">
                         <!-- List items will be injected here -->
+                    </div>
+                </div>
+
+                <div id="backup" class="tab-content">
+                    <div class="setting-item">
+                        <h3>Export Configuration</h3>
+                        <p style="font-size: 12px; color: #888; margin-bottom: 10px;">Download a backup of your current settings, shortcuts, and custom images.</p>
+                        <button id="exportDataBtn" class="primary-btn">Export Backup</button>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+                    <div class="setting-item">
+                        <h3>Import Configuration</h3>
+                        <p style="font-size: 12px; color: #888; margin-bottom: 10px;">Restore from a previous backup. This will replace your current setup.</p>
+                        <input type="file" id="importDataInput" accept=".json" style="display: none;">
+                        <button id="importDataBtn" class="primary-btn" style="background-color: #2e7d32;">Import Backup</button>
+                    </div>
+
+                    <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #666; line-height: 1.4;">
+                        <p><strong>Privacy Notice:</strong> Your data is completely private. This extension does not collect, track, or share any of your information.</p>
+                        <p style="margin-top: 5px;">Created by Fernando Granco | <a href="https://github.com/fernando-granco/NewTab" target="_blank" style="color: #888; text-decoration: none; border-bottom: 1px dotted #888;">GitHub</a></p>
+                        <p style="margin-top: 5px; font-size: 10px; opacity: 0.7;">Dashboard icons provided by <a href="https://github.com/homarr-labs/dashboard-icons" target="_blank" style="color: #666; text-decoration: underline;">homarr-labs</a> (Apache-2.0 License).</p>
                     </div>
                 </div>
             </div>
@@ -309,9 +334,14 @@
                         <label>Icon Source</label>
                         <select id="iconSource">
                             <option value="favicon">Auto Favicon</option>
+                            <option value="dashboardicons">DashboardIcons</option>
                             <option value="url">Custom Image URL</option>
                             <option value="file">Upload Image</option>
                         </select>
+                    </div>
+                    <div class="form-group" id="iconDashboardGroup" style="display:none;">
+                        <label>Icon Name <span style="font-size: 11px; color:#888;">(<a href="https://dashboardicons.com/" target="_blank" style="color:#66b0ff; text-decoration:none;">browse here</a>)</span></label>
+                        <input type="text" id="iconDashboardInput" placeholder="e.g. netflix, youtube, github-light">
                     </div>
                     <div class="form-group" id="iconUrlGroup" style="display:none;">
                         <label>Image URL</label>
