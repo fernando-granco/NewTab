@@ -20,7 +20,7 @@ const defaultSettings = {
     bgType: 'gradient', // gradient, color, url, file
     bgValue: '',
     bgBlur: 0,
-    showIconBg: true,
+    showIconBg: false,
     iconShape: 'circle', // circle, square
     iconBgColor: '#ffffff',
     showLabels: true,
