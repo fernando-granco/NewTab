@@ -6,7 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Tab</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- The Inter font ships inside the extension (see styles.css), so no font
+         requests leave the machine. These preconnects only warm up the two icon
+         hosts, used the first time a shortcut's icon isn't cached yet. -->
+    <link rel="preconnect" href="https://t2.gstatic.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 </head>
 
 <body>

@@ -2,12 +2,17 @@
   "manifest_version": 3,
   "name": "New Tab",
   "description": "A premium, highly customizable New Tab extension with a sleek design, shortcut management, and integrated search.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
   "permissions": [
     "bookmarks",
-    "search"
+    "search",
+    "favicon"
+  ],
+  "host_permissions": [
+    "https://t2.gstatic.com/faviconV2*",
+    "https://cdn.jsdelivr.net/*"
   ]
 }

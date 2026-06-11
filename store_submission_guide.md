@@ -19,3 +19,21 @@ Here are the professional justifications you can use for your store listing.
 
 **Draft Answer**:
 > "The 'search' permission is required to access the `chrome.search.query` API. This functionality is essential to provide a user-friendly search bar within the extension that respects the user's default browser search settings. The extension does not define its own search engine or modify search settings; it strictly uses this permission to route user queries to their existing preferred provider, ensuring compliance with the 'Single Purpose' policy by acting as a native UI integration."
+
+## Favicon Permission Justification (added in v1.2.0)
+**Question**: *A justification for favicon is required. This can be entered on the Privacy practices tab.*
+
+**Draft Answer**:
+> "The 'favicon' permission is used solely to display website icons on the user's shortcut grid via the `chrome-extension://<id>/_favicon/` endpoint. It serves as an offline fallback: when the device has no internet connection and an icon has not yet been cached by the extension, the icon Chrome already stores locally for the visited site is shown instead of a blank tile. Access is read-only, happens entirely on the user's machine, and no browsing or favicon data is ever collected or transmitted."
+
+## Host Permissions Justification (added in v1.2.0)
+**Question**: *A justification for host permissions is required. This can be entered on the Privacy practices tab.*
+
+**Draft Answer**:
+> "The extension requests exactly two narrowly-scoped host permissions, both used only to download icon images for the shortcuts the user has created:
+>
+> 1. `https://t2.gstatic.com/faviconV2*` — Google's public favicon service. Each shortcut's favicon is fetched once at high resolution and stored locally (IndexedDB) so the new-tab page renders instantly and continues to work fully offline. The host permission is required because this endpoint does not serve CORS headers, so a regular fetch from the extension page would be blocked and the local cache could not be populated. The only data included in the request is the domain of the shortcut the user added.
+>
+> 2. `https://cdn.jsdelivr.net/*` — the public CDN serving the open-source 'dashboard-icons' collection (homarr-labs, Apache-2.0). It is contacted only when the user explicitly selects a DashboardIcons icon or clicks the 'Auto-Match Icons' button, and the downloaded SVG icons are likewise cached locally for offline use.
+>
+> No user data is sent to either host beyond the icon being requested, no remote code is loaded or executed (only image assets), and nothing is collected, tracked, or shared."

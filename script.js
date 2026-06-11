@@ -1,3 +1,24 @@
+/* =========================================================================
+ * New Tab — main script
+ * =========================================================================
+ * How this file is organized (top to bottom):
+ *
+ *   1. Default data & state ......... the sites, the settings, the caches
+ *   2. DOM element lookups .......... every input/button the UI talks to
+ *   3. Utilities .................... image resizing, IndexedDB helpers
+ *   4. Shortcut icons ............... the offline-first icon pipeline
+ *   5. Initialization & saving ...... init(), saveState(), applySettings()
+ *   6. Grid rendering ............... renderGrid() + drag-and-drop reorder
+ *   7. Settings UI .................. modals, tabs, bookmarks, backup
+ *
+ * Storage at a glance:
+ *   - localStorage ........ sites list + settings (small, read synchronously
+ *                           so the grid can paint immediately)
+ *   - IndexedDB ........... images: uploaded icons, backgrounds, and the
+ *                           favicon cache (preloaded into `imageCache`
+ *                           before first paint)
+ * ========================================================================= */
+
 // Default Data
 const defaultSites = [
     { id: '1', name: 'Whatsapp', url: 'https://web.whatsapp.com', color: '#25D366', iconSource: 'favicon' },
@@ -15,7 +36,6 @@ const defaultSettings = {
     gridRowGap: 40,
     gridColGap: 40,
     gridVerticalOffset: 0,
-    iconSource: 'favicon', // 'favicon', 'url', 'file'
     colCount: 4, // Default to 4
     bgType: 'gradient', // gradient, color, url, file
     bgValue: '',
@@ -31,7 +51,7 @@ const defaultSettings = {
     openAllPosition: 'bottom', // bottom, top
     showSearch: false,
     searchPosition: 'top', // top, bottom
-    searchIconStyle: 'none', // glass, google, bing, duckduckgo, url, file
+    searchIconStyle: 'none', // glass, globe, dot, none, url, file
     searchIconValue: '',
     searchMargin: 20,
     openShortcutsNewTab: false,
@@ -44,6 +64,7 @@ const defaultSettings = {
 // State
 let sites = JSON.parse(localStorage.getItem('sites')) || defaultSites;
 let settings = JSON.parse(localStorage.getItem('settings')) || defaultSettings;
+const imageCache = {}; // Pre-load IDB images for synchronous rendering
 
 // Merge defaults in case of new settings
 settings = { ...defaultSettings, ...settings };
@@ -64,7 +85,6 @@ const contentWrapper = document.getElementById('contentWrapper');
 // Inputs - Layout
 const iconSizeInput = document.getElementById('iconSize');
 const iconSizeValInput = document.getElementById('iconSizeValInput');
-const colCountInput = document.getElementById('colCount');
 const colCountValInput = document.getElementById('colCountValInput');
 const showIconBgInput = document.getElementById('showIconBg');
 const iconShapeInput = document.getElementById('iconShape');
@@ -84,7 +104,7 @@ const searchPositionInput = document.getElementById('searchPosition');
 const searchWrapper = document.getElementById('searchWrapper');
 const searchForm = document.getElementById('searchForm');
 const searchInput = document.getElementById('searchInput');
-const searchIcon = document.getElementById('searchIcon'); // Ensure ID matches HTML
+const searchIcon = document.getElementById('searchIcon');
 const searchIconStyleInput = document.getElementById('searchIconStyle');
 const searchIconUrlInput = document.getElementById('searchIconUrlInput');
 const searchIconFileInput = document.getElementById('searchIconFileInput');
@@ -93,8 +113,6 @@ const searchIconFileGroup = document.getElementById('searchIconFileGroup');
 const searchMarginInput = document.getElementById('searchMargin');
 const searchMarginValInput = document.getElementById('searchMarginValInput');
 const openSearchNewTabInput = document.getElementById('openSearchNewTab');
-
-
 
 // Inputs - Background
 const bgTypeInput = document.getElementById('bgType');
@@ -156,6 +174,317 @@ const openAllBtn = document.getElementById('openAllBtn');
 
 // --- Utilities ---
 
+function resizeImage(dataUrl, maxSize = 256, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+                if (width > maxSize) {
+                    height = Math.round((height *= maxSize / width));
+                    width = maxSize;
+                }
+            } else {
+                if (height > maxSize) {
+                    width = Math.round((width *= maxSize / height));
+                    height = maxSize;
+                }
+            }
+            if (width === img.width && height === img.height) {
+                resolve(dataUrl); // No resize needed
+                return;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            // use webp for better compression
+            resolve(canvas.toDataURL('image/webp', quality));
+        };
+        img.onerror = () => reject(new Error('Failed to load image for resizing.'));
+        img.src = dataUrl;
+    });
+}
+
+const DB_NAME = 'NewTabDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'images';
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function saveImageToDB(key, dataUrl) {
+    imageCache[key] = dataUrl;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(dataUrl, key);
+        tx.oncomplete = () => resolve(key);
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function loadImageFromDB(key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(tx.error);
+    });
+}
+
+async function deleteImageFromDB(key) {
+    delete imageCache[key];
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function getAllImagesFromDB() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        const keysReq = store.getAllKeys();
+        
+        tx.oncomplete = () => {
+            const result = {};
+            keysReq.result.forEach((key, i) => {
+                result[key] = req.result[i];
+            });
+            resolve(result);
+        };
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+// --- One-time migrations from older versions ---
+// Early versions stored uploaded images in IndexedDB and kept an 'idb:...'
+// reference in the site/setting. Today the (compact, resized) image lives
+// directly in the value. This converts any leftover old-style references
+// once, then cleans up the orphaned IndexedDB entry.
+
+// Returns the migrated value, or null if `value` wasn't an old-style reference.
+async function inlineOldIdbImage(value, maxSize, quality) {
+    if (!value || !value.startsWith('idb:')) return null;
+    try {
+        const dataUrl = await loadImageFromDB(value);
+        if (!dataUrl) return null;
+        const inlined = await resizeImage(dataUrl, maxSize, quality);
+        await deleteImageFromDB(value).catch(() => {});
+        return inlined;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function handleStorageMigrations() {
+    let saveNeeded = false;
+
+    for (const site of sites) {
+        if (site.iconSource !== 'file') continue;
+        const migrated = await inlineOldIdbImage(site.iconValue, 256);
+        if (migrated) { site.iconValue = migrated; saveNeeded = true; }
+    }
+
+    if (settings.searchIconStyle === 'file') {
+        const migrated = await inlineOldIdbImage(settings.searchIconValue, 256);
+        if (migrated) { settings.searchIconValue = migrated; saveNeeded = true; }
+    }
+
+    if (settings.tabFaviconSource === 'file') {
+        const migrated = await inlineOldIdbImage(settings.tabFaviconValue, 256);
+        if (migrated) { settings.tabFaviconValue = migrated; saveNeeded = true; }
+    }
+
+    if (settings.bgType === 'file' && settings.bgValue) {
+        const migrated = await inlineOldIdbImage(settings.bgValue, 3840, 0.95);
+        if (migrated) {
+            settings.bgValue = migrated;
+            saveNeeded = true;
+        } else if (settings.bgValue.startsWith('data:image/') && !settings.bgValue.startsWith('data:image/webp')) {
+            // Older versions stored backgrounds as bulky PNG/JPEG data URLs;
+            // re-encode once as webp to free up localStorage space.
+            settings.bgValue = await resizeImage(settings.bgValue, 3840, 0.95);
+            saveNeeded = true;
+        }
+    }
+
+    if (saveNeeded) saveState();
+    return saveNeeded;
+}
+
+// =========================================================================
+// Shortcut icons — how a shortcut gets its picture
+// =========================================================================
+// Every shortcut tries these sources in order, stopping at the first one
+// that works. The goal: icons paint instantly, look sharp on 4K screens,
+// and NEVER show up blank — even with no internet at all.
+//
+//   1. Our own cache (IndexedDB) — saved the first time the icon loaded.
+//      Instant and fully offline.
+//   2. The remote source (Google's favicon service at 256px, or the
+//      DashboardIcons CDN). On success it is saved into the cache, so this
+//      network trip happens only once per icon.
+//   3. Chrome's built-in favicon store ("favicon" permission) — the icon
+//      Chrome itself saved when you visited the site. Local, offline.
+//   4. A generated letter tile (the site's first letter on its color).
+//      Built in-memory, so it always works.
+//
+// Note: step 2 only works because manifest.json declares host_permissions
+// for the two icon hosts. Without that, the fetch is blocked by CORS and
+// the cache silently never fills (the original offline-icons bug).
+
+const FAV_PREFIX = 'favcache:';
+const inFlightIconFetches = new Set();
+
+function getRemoteIconUrl(site) {
+    if (site.iconSource === 'dashboardicons' && site.iconValue) {
+        return `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/${site.iconValue}.svg`;
+    }
+    // Google's favicon service, asked directly at its real address
+    // (www.google.com/s2/favicons just redirects here — skipping the redirect
+    // saves a round trip). size=256 keeps icons crisp on 4K monitors;
+    // Google serves the largest version the site actually has.
+    return 'https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL' +
+        `&url=${encodeURIComponent(site.url)}&size=256`;
+}
+
+// Chrome's own favicon store. It holds icons for every site the user has
+// visited, entirely on disk — perfect as an offline fallback.
+function getChromeFaviconUrl(pageUrl) {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) return null;
+    return chrome.runtime.getURL('/_favicon/') +
+        `?pageUrl=${encodeURIComponent(pageUrl)}&size=64`;
+}
+
+// Last-resort icon: the site's first letter on its accent color.
+// Drawn as an SVG data URL, so it is crisp at any size and needs no network.
+function createLetterTile(site) {
+    const letter = (site.name || '?').trim().charAt(0).toUpperCase() || '?';
+    const useSiteColor = site.color && site.color.toLowerCase() !== '#ffffff';
+    const background = useSiteColor ? site.color : '#5c6bc0';
+    const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">` +
+        `<rect width="128" height="128" fill="${background}"/>` +
+        `<text x="64" y="68" fill="#ffffff" font-family="Inter, Arial, sans-serif" ` +
+        `font-size="64" font-weight="600" text-anchor="middle" dominant-baseline="middle">${letter}</text>` +
+        `</svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+// Wire up an <img> so that if its current source fails to load, it quietly
+// moves on to the next one in the list. The letter tile goes last and is
+// stretched to fill the icon shape.
+function setIconFallbackChain(img, fallbackSources) {
+    img.onerror = () => {
+        const next = fallbackSources.shift();
+        if (!next) {
+            img.onerror = null; // Nothing left to try; stop to avoid loops.
+            return;
+        }
+        if (fallbackSources.length === 0) img.classList.add('full-fill'); // letter tile
+        img.src = next;
+    };
+}
+
+// Pick the best source for a shortcut's <img> (see the ordered list above).
+function setShortcutIcon(img, site) {
+    // Custom icons (a pasted URL or an uploaded file) have one true source;
+    // if it breaks, fall straight back to the letter tile.
+    if ((site.iconSource === 'url' || site.iconSource === 'file') && site.iconValue) {
+        img.className = 'full-fill';
+        img.src = site.iconValue.startsWith('idb:')
+            ? (imageCache[site.iconValue] || '')
+            : site.iconValue;
+        setIconFallbackChain(img, [createLetterTile(site)]);
+        return;
+    }
+
+    const remoteUrl = getRemoteIconUrl(site);
+    const cached = imageCache[FAV_PREFIX + remoteUrl];
+    const chromeFavicon = getChromeFaviconUrl(site.url);
+    const fallbacks = [];
+
+    if (cached) {
+        img.src = cached; // The happy path: instant, offline, high-res.
+    } else if (navigator.onLine) {
+        img.src = remoteUrl;                                  // Show it now...
+        cacheRemoteIcon(FAV_PREFIX + remoteUrl, remoteUrl);   // ...cache it for next time.
+        if (chromeFavicon) fallbacks.push(chromeFavicon);
+    } else if (chromeFavicon) {
+        img.src = chromeFavicon; // Offline with nothing cached yet: use Chrome's copy.
+    } else {
+        img.src = createLetterTile(site);
+        img.classList.add('full-fill');
+        return;
+    }
+
+    fallbacks.push(createLetterTile(site));
+    setIconFallbackChain(img, fallbacks);
+}
+
+// Download a remote icon once and store it in IndexedDB as a data URL.
+// From then on the icon paints from disk, even with no internet.
+async function cacheRemoteIcon(cacheKey, url) {
+    if (imageCache[cacheKey] || inFlightIconFetches.has(cacheKey)) return;
+    inFlightIconFetches.add(cacheKey);
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(blob);
+        });
+        // Keep SVGs verbatim (they scale forever); cap raster icons at 256px,
+        // which matches the largest size the grid can display on 4K.
+        const finalUrl = (blob.type.includes('svg') || dataUrl.length < 4000)
+            ? dataUrl
+            : await resizeImage(dataUrl, 256).catch(() => dataUrl);
+        await saveImageToDB(cacheKey, finalUrl);
+    } catch (e) {
+        // Network failure — the <img> fallback chain already covers the screen.
+    } finally {
+        inFlightIconFetches.delete(cacheKey);
+    }
+}
+
+// Drop cached icons for sites that no longer exist (e.g. after a URL edit).
+async function pruneIconCache() {
+    try {
+        const wanted = new Set(sites.map(getRemoteIconUrl).map(u => FAV_PREFIX + u));
+        const all = await getAllImagesFromDB();
+        for (const key of Object.keys(all)) {
+            if (key.startsWith(FAV_PREFIX) && !wanted.has(key)) {
+                delete imageCache[key];
+                await deleteImageFromDB(key).catch(() => {});
+            }
+        }
+    } catch (e) { /* non-critical */ }
+}
+
 function debounce(fn, ms = 80) {
     let timer;
     return (...args) => {
@@ -166,11 +495,40 @@ function debounce(fn, ms = 80) {
 
 // --- Initialization ---
 
-function init() {
-    applySettings();
-    renderGrid();
+async function init() {
     setupEventListeners();
     loadBookmarkFolders();
+
+    // Preload all locally-stored images (custom icons, background, cached
+    // favicons) BEFORE the first paint. This lets us render the grid exactly
+    // once with the correct images — eliminating the flash/blink that a second
+    // full re-render used to cause.
+    try {
+        Object.assign(imageCache, await getAllImagesFromDB());
+    } catch (e) {
+        console.error("Failed to preload images", e);
+    }
+
+    applySettings();
+    grid.classList.add('first-paint');
+    renderGrid();
+    // Drop the animation hook after it plays so drag-reorder re-renders are instant.
+    setTimeout(() => grid.classList.remove('first-paint'), 400);
+
+    // If the tab was opened offline, some icons may be showing fallbacks.
+    // The moment the connection returns, repaint so the real icons load
+    // (and get cached for the next offline session).
+    window.addEventListener('online', renderGrid);
+
+    // One-time legacy data migrations (rare). Only re-render if they changed data.
+    handleStorageMigrations().then(changed => {
+        if (changed) {
+            applySettings();
+            renderGrid();
+        }
+        // Tidy stale cached icons in the background.
+        pruneIconCache();
+    }).catch(e => console.error("Migration failed", e));
 }
 
 // Save to localStorage only (fast, no DOM work)
@@ -256,7 +614,6 @@ function applySettings() {
         }
     }
 
-
     // Background
     bg.style.filter = `blur(${settings.bgBlur}px)`;
 
@@ -271,9 +628,17 @@ function applySettings() {
     } else if (settings.bgType === 'url' || settings.bgType === 'file') {
         bg.style.background = '';
         if (settings.bgValue) {
-            bg.style.backgroundImage = `url("${settings.bgValue}")`;
-            bg.style.backgroundSize = 'cover';
-            bg.style.backgroundPosition = 'center';
+            if (settings.bgValue.startsWith('idb:')) {
+                if (imageCache[settings.bgValue]) {
+                    bg.style.backgroundImage = `url("${imageCache[settings.bgValue]}")`;
+                    bg.style.backgroundSize = 'cover';
+                    bg.style.backgroundPosition = 'center';
+                }
+            } else {
+                bg.style.backgroundImage = `url("${settings.bgValue}")`;
+                bg.style.backgroundSize = 'cover';
+                bg.style.backgroundPosition = 'center';
+            }
             if (settings.bgType === 'url') bgUrlInput.value = settings.bgValue;
         }
     }
@@ -353,7 +718,13 @@ function applySettings() {
                 } else if (style === 'dot') {
                     searchIcon.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjQiPjwvY2lyY2xlPjwvc3ZnPg==';
                 } else if (style === 'url' || style === 'file') {
-                    searchIcon.src = settings.searchIconValue;
+                    if (settings.searchIconValue && settings.searchIconValue.startsWith('idb:')) {
+                        if (imageCache[settings.searchIconValue]) {
+                            searchIcon.src = imageCache[settings.searchIconValue];
+                        }
+                    } else {
+                        searchIcon.src = settings.searchIconValue;
+                    }
                 } else {
                     // Default Glass
                     searchIcon.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgY2xhc3M9ImZlYXRoZXIgZmVhdGhlci1zZWFyY2giPjxjaXJjbGUgY3g9IjExIiBjeT0iMTEiIHI9IjgiPjwvY2lyY2xlPjxsaW5lIHgxPSIyMSIgeTE9IjIxIiB4Mj0iMTYuNjUiIHkyPSIxNi42NSI+PC9saW5lPjwvc3ZnPg==';
@@ -394,18 +765,31 @@ function updateSearchIconInputsDisplay() {
 
 function updateTabFavicon() {
     let link = document.querySelector("link[rel~='icon']");
+
+    // "Default" means no custom icon: drop our <link> so Chrome shows its
+    // standard tab icon. (The old code pointed at a favicon.ico that was
+    // never shipped with the extension.)
+    if (settings.tabFaviconSource === 'default') {
+        if (link) link.remove();
+        return;
+    }
+
     if (!link) {
         link = document.createElement('link');
         link.rel = 'icon';
-        document.getElementsByTagName('head')[0].appendChild(link);
+        document.head.appendChild(link);
     }
 
-    if (settings.tabFaviconSource === 'default') {
-        link.href = 'favicon.ico';
-    } else if (settings.tabFaviconSource === 'color') {
+    if (settings.tabFaviconSource === 'color') {
         link.href = createColorFavicon(settings.tabFaviconValue || '#3f51b5');
     } else if (settings.tabFaviconValue) {
-        link.href = settings.tabFaviconValue;
+        if (settings.tabFaviconValue.startsWith('idb:')) {
+            if (imageCache[settings.tabFaviconValue]) {
+                link.href = imageCache[settings.tabFaviconValue];
+            }
+        } else {
+            link.href = settings.tabFaviconValue;
+        }
     }
 }
 
@@ -461,18 +845,13 @@ function renderGrid() {
         }
 
         const img = document.createElement('img');
-        img.loading = 'lazy';
+        // Grid icons are all above the fold — eager + async decode makes them
+        // appear together instead of popping in one-by-one (lazy did the latter).
+        img.loading = 'eager';
+        img.decoding = 'async';
         img.draggable = false;
-        if ((site.iconSource === 'url' || site.iconSource === 'file') && site.iconValue) {
-            img.src = site.iconValue;
-            img.className = 'full-fill';
-        } else if (site.iconSource === 'dashboardicons' && site.iconValue) {
-            img.src = `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/${site.iconValue}.svg`;
-            img.className = 'dash-icon';
-        } else {
-            img.src = `https://www.google.com/s2/favicons?domain=${site.url}&sz=128`;
-        }
         img.alt = site.name;
+        setShortcutIcon(img, site); // Cache → remote → Chrome's copy → letter tile
 
         circle.appendChild(img);
 
@@ -566,11 +945,11 @@ function renderShortcutsList() {
 
         const editBtn = document.createElement('button');
         editBtn.textContent = '✏️';
-        editBtn.onclick = () => window.editShortcut(site.id); // Use arrow function closure
+        editBtn.onclick = () => editShortcut(site.id);
 
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '🗑️';
-        deleteBtn.onclick = () => window.deleteShortcut(site.id); // Use arrow function closure
+        deleteBtn.onclick = () => deleteShortcut(site.id);
 
         actionsDiv.appendChild(editBtn);
         actionsDiv.appendChild(deleteBtn);
@@ -778,8 +1157,11 @@ function setupEventListeners() {
     // Search Settings
     if (showSearchInput) showSearchInput.onchange = (e) => { settings.showSearch = e.target.checked; saveState(); applySettings(); };
     if (searchIconStyleInput) {
-        searchIconStyleInput.onchange = (e) => {
+        searchIconStyleInput.onchange = async (e) => {
             settings.searchIconStyle = e.target.value;
+            if (settings.searchIconValue && settings.searchIconValue.startsWith('idb:')) {
+                await deleteImageFromDB(settings.searchIconValue).catch(console.error);
+            }
             settings.searchIconValue = '';
             saveState();
             applySettings();
@@ -799,12 +1181,13 @@ function setupEventListeners() {
         searchIconFileInput.onchange = async (e) => {
             if (e.target.files[0] && settings.searchIconStyle === 'file') {
                 try {
-                    settings.searchIconValue = await readFileAsDataURL(e.target.files[0]);
+                    const dataUrl = await readFileAsDataURL(e.target.files[0]);
+                    settings.searchIconValue = await resizeImage(dataUrl, 256);
                     saveState();
                     applySettings();
                 } catch (err) {
                     console.error("Error reading search icon file", err);
-                    alert("Failed to load icon. It might be too large.");
+                    alert("Failed to load icon.");
                 }
             }
         };
@@ -842,8 +1225,11 @@ function setupEventListeners() {
             }
         };
     }
-    bgTypeInput.onchange = (e) => {
+    bgTypeInput.onchange = async (e) => {
         settings.bgType = e.target.value;
+        if (settings.bgValue && settings.bgValue.startsWith('idb:')) {
+            await deleteImageFromDB(settings.bgValue).catch(console.error);
+        }
         settings.bgValue = '';
         saveState();
         applySettings();
@@ -857,7 +1243,8 @@ function setupEventListeners() {
     bgFileInput.onchange = async (e) => {
         if (e.target.files[0]) {
             try {
-                settings.bgValue = await readFileAsDataURL(e.target.files[0]);
+                const dataUrl = await readFileAsDataURL(e.target.files[0]);
+                settings.bgValue = await resizeImage(dataUrl, 3840, 0.95);
                 saveState();
                 applySettings();
             } catch (err) {
@@ -872,10 +1259,14 @@ function setupEventListeners() {
 
     // Backup & Restore
     if (exportDataBtn) {
-        exportDataBtn.onclick = () => {
-            // Note: Since sites or settings might contain stringified large base64 images, 
-            // json size shouldn't be excessively large, but object URL is cleaner than data URI for large sizes
-            const dataStr = JSON.stringify({ sites, settings });
+        exportDataBtn.onclick = async () => {
+            const dbImages = await getAllImagesFromDB().catch(() => ({}));
+            // Don't export cached favicons — they regenerate automatically.
+            const images = {};
+            for (const key of Object.keys(dbImages)) {
+                if (!key.startsWith(FAV_PREFIX)) images[key] = dbImages[key];
+            }
+            const dataStr = JSON.stringify({ sites, settings, images });
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -896,12 +1287,17 @@ function setupEventListeners() {
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const data = JSON.parse(event.target.result);
                     if (data.sites && data.settings) {
                         sites = data.sites;
                         settings = data.settings;
+                        if (data.images) {
+                            for (const key of Object.keys(data.images)) {
+                                await saveImageToDB(key, data.images[key]);
+                            }
+                        }
                         saveAndRender();
                         alert("Configuration imported successfully!");
                     } else {
@@ -927,8 +1323,11 @@ function setupEventListeners() {
     }
 
     if (tabFaviconSourceInput) {
-        tabFaviconSourceInput.onchange = (e) => {
+        tabFaviconSourceInput.onchange = async (e) => {
             settings.tabFaviconSource = e.target.value;
+            if (settings.tabFaviconValue && settings.tabFaviconValue.startsWith('idb:')) {
+                await deleteImageFromDB(settings.tabFaviconValue).catch(console.error);
+            }
             settings.tabFaviconValue = '';
             if (e.target.value === 'color') settings.tabFaviconValue = '#3f51b5';
             saveState();
@@ -961,18 +1360,17 @@ function setupEventListeners() {
         tabFaviconFileInput.onchange = async (e) => {
             if (e.target.files[0] && settings.tabFaviconSource === 'file') {
                 try {
-                    settings.tabFaviconValue = await readFileAsDataURL(e.target.files[0]);
+                    const dataUrl = await readFileAsDataURL(e.target.files[0]);
+                    settings.tabFaviconValue = await resizeImage(dataUrl, 256);
                     saveState();
                     applySettings();
                 } catch (err) {
                     console.error("Error reading favicon file", err);
-                    alert("Failed to load icon. It might be too large.");
+                    alert("Failed to load icon.");
                 }
             }
         };
     }
-
-
 
     // Shortcut Modal
     addShortcutBtn.onclick = () => {
@@ -1056,7 +1454,8 @@ function setupEventListeners() {
         } else if (iconSourceInput.value === 'dashboardicons') {
             iconValue = iconDashboardInput.value.trim().toLowerCase();
         } else if (iconSourceInput.value === 'file' && iconFileInput.files[0]) {
-            iconValue = await readFileAsDataURL(iconFileInput.files[0]);
+            const dataUrl = await readFileAsDataURL(iconFileInput.files[0]);
+            iconValue = await resizeImage(dataUrl, 256);
         } else if (editIdInput.value) {
             const existing = sites.find(s => s.id === id);
             if (existing && existing.iconSource === iconSourceInput.value) {
@@ -1081,7 +1480,12 @@ function setupEventListeners() {
 
         if (editIdInput.value) {
             const index = sites.findIndex(s => s.id === id);
-            if (index !== -1) sites[index] = newSite;
+            if (index !== -1) {
+                if (sites[index].iconValue && sites[index].iconValue.startsWith('idb:') && sites[index].iconValue !== iconValue) {
+                    await deleteImageFromDB(sites[index].iconValue).catch(console.error);
+                }
+                sites[index] = newSite;
+            }
         } else {
             sites.push(newSite);
         }
@@ -1095,19 +1499,21 @@ function setupEventListeners() {
 
 // --- Helpers ---
 
-// Attach to window to ensure global scope access for inline onclick
-window.editShortcut = (id) => {
-    // Ensure ID is string comparison
+// IDs are compared as strings: old data may hold numbers, new data strings.
+function editShortcut(id) {
     const site = sites.find(s => String(s.id) === String(id));
-    if (!site) return;
-    openShortcutModal(site);
-};
+    if (site) openShortcutModal(site);
+}
 
-window.deleteShortcut = (id) => {
+async function deleteShortcut(id) {
+    const site = sites.find(s => String(s.id) === String(id));
+    if (site && site.iconValue && site.iconValue.startsWith('idb:')) {
+        await deleteImageFromDB(site.iconValue).catch(console.error);
+    }
     sites = sites.filter(s => String(s.id) !== String(id));
     saveAndRender();
     renderShortcutsList();
-};
+}
 
 function openShortcutModal(site = null) {
     shortcutModal.style.display = 'flex';
