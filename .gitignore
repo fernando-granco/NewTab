@@ -11,3 +11,4 @@ dist/
 .env
 *.zip
 store_submission_guide.md
+UploadedReleases/
