@@ -20,6 +20,15 @@
 
 :root {
     --icon-size: 100px;
+    /* The page font. JS (applyFont) repoints this to a system font, an
+       uploaded font, or a Google Font; the bundled Inter is the default. */
+    --app-font: 'Inter', system-ui, sans-serif;
+    /* Theming knobs set by JS (applySettings). The defaults here match the
+       original look, so the page is identical until the user changes them. */
+    --accent: #3f51b5;
+    --label-scale: 0.14;
+    --label-color: #eeeeee;
+    --label-weight: 500;
 }
 
 * {
@@ -31,7 +40,7 @@
 body {
     /* Background moved to #bg */
     color: #ffffff;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--app-font);
     height: 100vh;
     display: flex;
     justify-content: center;
@@ -195,9 +204,11 @@ body {
 
 
 .label {
-    /* Responsive font size based on icon size (approx 14/100 ratio) */
-    font-size: calc(var(--icon-size) * 0.14);
-    font-weight: 500;
+    /* Size scales with the icon; color and weight are user-controllable.
+       Defaults (0.14 / #eeeeee / 500) reproduce the original label exactly. */
+    font-size: calc(var(--icon-size) * var(--label-scale, 0.14));
+    color: var(--label-color, #eeeeee);
+    font-weight: var(--label-weight, 500);
     text-align: center;
     opacity: 0.8;
     white-space: nowrap;
@@ -238,15 +249,17 @@ body {
 }
 
 .modal-content {
-    background-color: #2a2a2a;
+    background-color: #242424;
     width: 90%;
     max-width: 500px;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
     display: flex;
     flex-direction: column;
-    max-height: 80vh;
+    max-height: 85vh;
     position: absolute;
+    overflow: hidden;
 }
 
 .modal-header {
@@ -285,6 +298,7 @@ body {
 /* Tabs */
 .tabs {
     display: flex;
+    flex-wrap: wrap;
     border-bottom: 1px solid #3a3a3a;
     margin-bottom: 20px;
 }
@@ -329,7 +343,7 @@ input[type=range] {
 }
 
 .primary-btn {
-    background-color: #3f51b5;
+    background-color: var(--accent, #3f51b5);
     color: white;
     border: none;
     padding: 10px 15px;
@@ -341,7 +355,28 @@ input[type=range] {
 }
 
 .primary-btn:hover {
-    background-color: #5c6bc0;
+    /* Brighten whatever the accent is, instead of a hard-coded second color. */
+    filter: brightness(1.15);
+}
+
+/* Form controls in the settings panel pick up the accent color. */
+input[type=range],
+input[type=checkbox] {
+    accent-color: var(--accent, #3f51b5);
+}
+
+/* Subtle accent when the search bar is focused, and a keyboard-focus ring on
+   shortcuts (mouse users never see it; it aids keyboard navigation). */
+.search-wrapper form:focus-within {
+    border-color: var(--accent, #3f51b5) !important;
+}
+
+.icon-item:focus-visible {
+    outline: none;
+}
+
+.icon-item:focus-visible .icon-circle {
+    box-shadow: 0 0 0 3px var(--accent, #3f51b5), 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 /* Shortcuts List */
@@ -410,7 +445,473 @@ input[type=range] {
     color: #fff;
 }
 
-.form-group input[type="checkbox"] {
-    width: auto;
-    margin-right: 10px;
+/* Checkboxes throughout the modals are styled as toggle switches below. */
+
+/* Custom CSS editor */
+#customCssInput {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #eee;
+    font-family: ui-monospace, 'Courier New', monospace;
+    font-size: 13px;
+    resize: vertical;
+}
+
+/* Theme preset chips */
+.theme-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.theme-preset {
+    border: 1px solid #444;
+    background: #333;
+    color: #eee;
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.theme-preset:hover {
+    border-color: var(--accent, #3f51b5);
+}
+
+/* =====================================================================
+   Settings panel redesign — left nav rail + refined controls
+   ===================================================================== */
+
+/* Wider panel; the header sits on top, a sidebar + scrolling content below. */
+#settingsModal .modal-content {
+    max-width: 760px;
+    width: 92%;
+}
+
+#settingsModal .modal-body {
+    display: flex;
+    flex: 1;
+    padding: 0;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Left navigation rail */
+#settingsModal .tabs {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin: 0;
+    padding: 14px 10px;
+    min-width: 168px;
+    border-bottom: none;
+    border-right: 1px solid #333;
+    background: #1d1d1d;
+    overflow-y: auto;
+}
+
+#settingsModal .tab-btn {
+    width: 100%;
+    text-align: left;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #b9b9b9;
+    font-size: 14px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+#settingsModal .tab-btn:hover {
+    background: #2b2b2b;
+    color: #fff;
+}
+
+#settingsModal .tab-btn.active {
+    background: var(--accent, #3f51b5);
+    color: #fff;
+    border: none;
+}
+
+/* Scrollable content area */
+#settingsModal .settings-content {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 22px 24px;
+}
+
+#settingsModal .settings-content h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #8a8a8a;
+    margin-bottom: 6px;
+}
+
+/* Consistent inputs across the panel */
+#settingsModal .settings-content select,
+#settingsModal .settings-content input[type="text"],
+#settingsModal .settings-content input[type="url"],
+#settingsModal .settings-content input[type="number"],
+#settingsModal .settings-content textarea {
+    width: 100%;
+    padding: 9px 11px;
+    border-radius: 8px;
+    border: 1px solid #3a3a3a;
+    background: #1a1a1a;
+    color: #eee;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+#settingsModal .settings-content select:focus,
+#settingsModal .settings-content input:focus,
+#settingsModal .settings-content textarea:focus {
+    outline: none;
+    border-color: var(--accent, #3f51b5);
+}
+
+#settingsModal #customCssInput {
+    font-family: ui-monospace, 'Courier New', monospace;
+}
+
+/* Color pickers as tidy swatches */
+#settingsModal .settings-content input[type="color"] {
+    width: 46px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    background: #1a1a1a;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+/* Slider header: label left, value + reset right */
+.slider-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.slider-head label {
+    margin: 0;
+}
+
+.slider-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#settingsModal .settings-content input.val-input {
+    width: 62px;
+    text-align: center;
+}
+
+/* Reset-to-default button beside each slider */
+.reset-btn {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #3a3a3a;
+    background: #2a2a2a;
+    color: #aaa;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.reset-btn:hover {
+    color: #fff;
+    border-color: var(--accent, #3f51b5);
+}
+
+/* Custom range slider */
+.modal input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #3a3a3a;
+    cursor: pointer;
+}
+
+.modal input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent, #3f51b5);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Native checkboxes → toggle switches (both modals, for consistency) */
+.modal input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    flex: none;
+    width: 40px;
+    height: 22px;
+    margin: 0;
+    border-radius: 999px;
+    background: #555;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.modal input[type="checkbox"]::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s ease;
+}
+
+.modal input[type="checkbox"]:checked {
+    background: var(--accent, #3f51b5);
+}
+
+.modal input[type="checkbox"]:checked::after {
+    transform: translateX(18px);
+}
+
+/* Reset-to-defaults button (Data tab) */
+.danger-btn {
+    background: transparent;
+    color: #ff6b6b;
+    border: 1px solid #ff6b6b;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    width: 100%;
+}
+
+.danger-btn:hover {
+    background: #ff6b6b;
+    color: #fff;
+}
+
+/* Folder tile — 2x2 mini preview of the first child icons */
+.folder-mini {
+    width: 78%;
+    height: 78%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8%;
+}
+
+.folder-mini img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 18%;
+}
+
+/* Page indicator dots under the grid */
+.page-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.page-dot {
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.page-dot:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.page-dot.active {
+    background: var(--accent, #3f51b5);
+    transform: scale(1.25);
+}
+
+/* Folder overlay grid */
+.folder-modal-content {
+    max-width: 680px;
+    width: 90%;
+}
+
+.folder-grid {
+    grid-template-columns: repeat(auto-fit, var(--icon-size));
+    padding: 10px;
+}
+
+/* Right-click tile menu */
+.tile-menu {
+    position: fixed;
+    z-index: 300;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    padding: 6px;
+    min-width: 190px;
+}
+
+.tile-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #eee;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.tile-menu-item:hover {
+    background: var(--accent, #3f51b5);
+    color: #fff;
+}
+
+/* Folder children indented in the management list */
+.shortcut-manage-item.child-item {
+    margin-left: 22px;
+    background: #2c2c2c;
+}
+
+/* Pages stepper (replaces the old slider) */
+.stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stepper-btn {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #3a3a3a;
+    background: #2a2a2a;
+    color: #eee;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.stepper-btn:hover {
+    border-color: var(--accent, #3f51b5);
+    color: #fff;
+}
+
+.stepper-val {
+    min-width: 26px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* Number-key badge on a tile */
+.icon-item {
+    position: relative;
+}
+
+.hotkey-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent, #3f51b5);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
+/* Drop-into-folder highlight (grid + list) */
+.icon-item.drop-target .icon-circle {
+    box-shadow: 0 0 0 3px var(--accent, #3f51b5);
+    transform: scale(1.06);
+}
+
+.shortcut-manage-item.drop-target {
+    outline: 2px dashed var(--accent, #3f51b5);
+    outline-offset: -2px;
+}
+
+.shortcut-manage-item.dragging {
+    opacity: 0.5;
+}
+
+/* Page-change transitions */
+@keyframes pageFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes pageSlideLeft {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pageSlideRight {
+    from { opacity: 0; transform: translateX(-40px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.grid.anim-fade { animation: pageFade 0.25s ease; }
+.grid.anim-slide-left { animation: pageSlideLeft 0.25s ease; }
+.grid.anim-slide-right { animation: pageSlideRight 0.25s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+    .grid.anim-fade,
+    .grid.anim-slide-left,
+    .grid.anim-slide-right { animation: none; }
+}
+
+/* Narrow viewports: nav rail collapses to a top row */
+@media (max-width: 640px) {
+    #settingsModal .modal-body { flex-direction: column; }
+    #settingsModal .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid #333;
+        min-width: 0;
+    }
+    #settingsModal .tab-btn { width: auto; }
 }

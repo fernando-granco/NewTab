@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Tab</title>
+    <link rel="icon" href="icon32.png">
     <link rel="stylesheet" href="styles.css">
 
     <!-- The Inter font ships inside the extension (see styles.css), so no font
@@ -35,6 +36,8 @@
 
             <div id="grid" class="grid"></div>
 
+            <div id="pageDots" class="page-dots" style="display:none;"></div>
+
             <div id="openAllWrapper" class="open-all-wrapper"
                 style="display: none; text-align: center; margin-top: 20px; margin-bottom: 20px;">
                 <button id="openAllBtn" class="primary-btn" style="width: auto; padding: 10px 30px;">Open All
@@ -51,43 +54,93 @@
             </div>
             <div class="modal-body">
                 <div class="tabs">
-                    <button class="tab-btn" data-tab="layout">Layout</button>
+                    <button class="tab-btn active" data-tab="layout">Layout</button>
+                    <button class="tab-btn" data-tab="theme">Theme</button>
+                    <button class="tab-btn" data-tab="behavior">Behavior</button>
                     <button class="tab-btn" data-tab="search">Search</button>
-
                     <button class="tab-btn" data-tab="background">Background</button>
                     <button class="tab-btn" data-tab="shortcuts">Shortcuts</button>
                     <button class="tab-btn" data-tab="backup">Data</button>
                 </div>
 
+                <div class="settings-content">
+
                 <div id="layout" class="tab-content active">
                     <div class="setting-item">
-                        <label for="iconSize">Icon Size (ref px): <input type="number" id="iconSizeValInput"
-                                class="val-input" min="50" max="300"></label>
+                        <div class="slider-head">
+                            <label for="iconSize">Icon Size</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="iconSizeValInput" class="val-input" min="50" max="300">
+                                <button type="button" class="reset-btn" id="iconSizeReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
                         <input type="range" id="iconSize" min="50" max="300" value="100">
                     </div>
 
                     <div class="setting-item">
-                        <label for="gridRowGap">Row Gap: <input type="number" id="gridRowGapValInput" class="val-input"
-                                min="0" max="100"></label>
+                        <div class="slider-head">
+                            <label for="gridRowGap">Row Gap</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="gridRowGapValInput" class="val-input" min="0" max="100">
+                                <button type="button" class="reset-btn" id="gridRowGapReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
                         <input type="range" id="gridRowGap" min="0" max="100" value="40">
                     </div>
 
                     <div class="setting-item">
-                        <label for="gridColGap">Col Gap: <input type="number" id="gridColGapValInput" class="val-input"
-                                min="0" max="100"></label>
+                        <div class="slider-head">
+                            <label for="gridColGap">Column Gap</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="gridColGapValInput" class="val-input" min="0" max="100">
+                                <button type="button" class="reset-btn" id="gridColGapReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
                         <input type="range" id="gridColGap" min="0" max="100" value="40">
                     </div>
 
                     <div class="setting-item">
-                        <label>Grid Vert Position: <input type="number" id="gridOffsetValInput" class="val-input"
-                                min="-500" max="500"></label>
+                        <div class="slider-head">
+                            <label for="gridOffset">Vertical Position</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="gridOffsetValInput" class="val-input" min="-500" max="500">
+                                <button type="button" class="reset-btn" id="gridOffsetReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
                         <input type="range" id="gridOffset" min="-500" max="500" value="0">
                     </div>
 
                     <div class="setting-item">
-                        <label for="colCount">Columns: <input type="number" id="colCountValInput" class="val-input"
-                                min="1" max="10"></label>
+                        <div class="slider-head">
+                            <label for="colCount">Columns</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="colCountValInput" class="val-input" min="1" max="10">
+                                <button type="button" class="reset-btn" id="colCountReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
                         <input type="range" id="colCount" min="1" max="10" value="4">
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="slider-head">
+                            <label>Pages</label>
+                            <div class="stepper">
+                                <button type="button" id="pageMinus" class="stepper-btn" aria-label="Fewer pages">−</button>
+                                <span id="pageCountDisplay" class="stepper-val">1</span>
+                                <button type="button" id="pagePlus" class="stepper-btn" aria-label="More pages">+</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 12px; color: #888; margin-top: 6px;">Switch pages with the dots
+                            under the grid or the ← → arrow keys.</p>
+                    </div>
+
+                    <div class="setting-item">
+                        <label for="pageTransition">Page Transition</label>
+                        <select id="pageTransition">
+                            <option value="instant">Instant</option>
+                            <option value="fade">Fade</option>
+                            <option value="slide">Slide</option>
+                        </select>
                     </div>
 
                     <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
@@ -117,10 +170,135 @@
                         </label>
                     </div>
 
+                    <div class="setting-item" id="labelSettingsGroup">
+                        <div class="slider-head">
+                            <label for="labelScale">Label Size</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="labelScaleValInput" class="val-input" min="5" max="30">
+                                <button type="button" class="reset-btn" id="labelScaleReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
+                        <input type="range" id="labelScale" min="5" max="30" value="14">
+
+                        <label style="margin-top: 10px;">Label Color</label>
+                        <input type="color" id="labelColor" value="#eeeeee">
+
+                        <label style="margin-top: 10px;">Label Weight</label>
+                        <select id="labelWeight">
+                            <option value="400">Regular</option>
+                            <option value="500">Medium</option>
+                            <option value="600">Semi-bold</option>
+                            <option value="700">Bold</option>
+                        </select>
+                    </div>
+
+                </div>
+
+
+
+                <div id="theme" class="tab-content">
+                    <div class="setting-item">
+                        <label>Font</label>
+                        <select id="fontSource">
+                            <option value="default">Default (Inter)</option>
+                            <option value="system">System Font</option>
+                            <option value="upload">Upload Font File</option>
+                            <option value="url">Google Fonts URL</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item" id="fontSystemGroup" style="display:none;">
+                        <label>System Font</label>
+                        <select id="fontSystemSelect">
+                            <option value="system-ui, sans-serif">System UI (Sans-serif)</option>
+                            <option value="Georgia, 'Times New Roman', serif">Serif</option>
+                            <option value="'Segoe UI', Roboto, Helvetica, Arial, sans-serif">Classic Sans</option>
+                            <option value="ui-rounded, 'SF Pro Rounded', 'Segoe UI', sans-serif">Rounded</option>
+                            <option value="'Courier New', ui-monospace, monospace">Monospace</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item" id="fontUploadGroup" style="display:none;">
+                        <label>Upload Font File <span style="font-size: 11px; color:#888;">(.woff2, .woff, .ttf, .otf)</span></label>
+                        <input type="file" id="fontFileInput" accept=".woff2,.woff,.ttf,.otf,font/*">
+                    </div>
+
+                    <div class="setting-item" id="fontUrlGroup" style="display:none;">
+                        <label>Google Fonts URL</label>
+                        <input type="url" id="fontUrlInput"
+                            placeholder="https://fonts.googleapis.com/css2?family=Roboto">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+
+                    <div class="setting-item">
+                        <label>Accent Color</label>
+                        <input type="color" id="accentColor" value="#3f51b5">
+                        <p style="font-size: 12px; color: #888; margin-top: 5px;">Used for buttons,
+                            sliders, the search highlight, and focus rings.</p>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+
+                    <div class="setting-item">
+                        <label>Theme Presets</label>
+                        <div id="themePresets" class="theme-presets"></div>
+                        <p style="font-size: 12px; color: #888; margin-top: 8px;">Presets only change
+                            the look (colors, icons, background, font) — never your shortcuts.</p>
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Save Current Look as a Theme</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="themeNameInput" placeholder="My theme" style="flex: 1;">
+                            <button id="themeSaveBtn" class="primary-btn" style="width: auto; margin: 0;">Save</button>
+                        </div>
+                        <div id="savedThemesList" class="shortcuts-list"></div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+
+                    <div class="setting-item">
+                        <label>Custom CSS <span style="font-size: 11px; color:#888;">(advanced — applies only to this page)</span></label>
+                        <textarea id="customCssInput" rows="6" spellcheck="false"
+                            placeholder="/* e.g. .label { letter-spacing: 1px; } */"></textarea>
+                    </div>
+                </div>
+
+                <div id="behavior" class="tab-content">
                     <div class="setting-item">
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                             <input type="checkbox" id="openShortcutsNewTab">
                             Open Shortcuts in New Tab
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="enableNumberKeys" checked>
+                            Number Keys (press 1–9 to open)
+                        </label>
+                        <p style="font-size: 12px; color: #888; margin-top: 5px; margin-left: 50px;">
+                            Assign a digit to a shortcut when you add or edit it.</p>
+                    </div>
+
+                    <div class="setting-item" id="numberKeyOptions">
+                        <label>Number Key Scope</label>
+                        <select id="hotkeyScope">
+                            <option value="universal">Universal (one set of 1–9)</option>
+                            <option value="page">Per Page (1–9 on each page)</option>
+                        </select>
+
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: 14px;">
+                            <input type="checkbox" id="showHotkeyBadge" checked>
+                            Show number badge on tiles
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="enableContextMenu" checked>
+                            Right-click Menu on Tiles
                         </label>
                     </div>
 
@@ -134,7 +312,12 @@
                     </div>
 
                     <div class="setting-item" id="openAllSettings">
-                        <label>Button Text</label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="confirmOpenAll" checked>
+                            Ask for confirmation
+                        </label>
+
+                        <label style="margin-top: 14px;">Button Text</label>
                         <input type="text" id="openAllText" value="Open All Sites">
 
                         <label style="margin-top: 10px;">Button Color</label>
@@ -154,8 +337,6 @@
                         </select>
                     </div>
                 </div>
-
-
 
                 <div id="search" class="tab-content">
                     <div class="setting-item">
@@ -199,8 +380,13 @@
                     </div>
 
                     <div class="setting-item">
-                        <label>Vertical Spacing: <input type="number" id="searchMarginValInput" class="val-input"
-                                min="0" max="500"></label>
+                        <div class="slider-head">
+                            <label for="searchMargin">Vertical Spacing</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="searchMarginValInput" class="val-input" min="0" max="500">
+                                <button type="button" class="reset-btn" id="searchMarginReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
                         <input type="range" id="searchMargin" min="0" max="500" value="20">
                     </div>
 
@@ -210,6 +396,54 @@
                             Open Search Results in New Tab
                         </label>
                     </div>
+
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+                    <h3>Bar Size &amp; Shape</h3>
+
+                    <div class="setting-item" style="margin-top: 10px;">
+                        <div class="slider-head">
+                            <label for="searchWidth">Width</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="searchWidthValInput" class="val-input" min="240" max="1000">
+                                <button type="button" class="reset-btn" id="searchWidthReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
+                        <input type="range" id="searchWidth" min="240" max="1000" value="600">
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="slider-head">
+                            <label for="searchHeight">Height</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="searchHeightValInput" class="val-input" min="4" max="30">
+                                <button type="button" class="reset-btn" id="searchHeightReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
+                        <input type="range" id="searchHeight" min="4" max="30" value="10">
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="slider-head">
+                            <label for="searchTextSize">Text Size</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="searchTextSizeValInput" class="val-input" min="12" max="30">
+                                <button type="button" class="reset-btn" id="searchTextSizeReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
+                        <input type="range" id="searchTextSize" min="12" max="30" value="18">
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="slider-head">
+                            <label for="searchRadius">Corner Roundness</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="searchRadiusValInput" class="val-input" min="0" max="50">
+                                <button type="button" class="reset-btn" id="searchRadiusReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
+                        <input type="range" id="searchRadius" min="0" max="50" value="50">
+                    </div>
+
                 </div>
 
                 <div id="background" class="tab-content">
@@ -222,6 +456,22 @@
                             <option value="file">Upload Image</option>
                         </select>
                     </div>
+                    <div class="setting-item" id="bgGradientGroup" style="display:none;">
+                        <label>Gradient Colors</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="color" id="gradColor1" value="#2a2a2a" style="flex:1;">
+                            <input type="color" id="gradColor2" value="#111111" style="flex:1;">
+                        </div>
+                        <label style="margin-top: 10px;">Direction</label>
+                        <select id="gradAngle">
+                            <option value="radial">Radial (Default)</option>
+                            <option value="0">Top → Bottom</option>
+                            <option value="90">Left → Right</option>
+                            <option value="45">Diagonal ↗</option>
+                            <option value="135">Diagonal ↘</option>
+                        </select>
+                    </div>
+
                     <div class="setting-item" id="bgColorGroup" style="display:none;">
                         <label>Color</label>
                         <input type="color" id="bgColor" value="#1a1a1a">
@@ -235,8 +485,13 @@
                         <input type="file" id="bgFileInput" accept="image/*">
                     </div>
                     <div class="setting-item">
-                        <label>Blur Amount: <input type="number" id="bgBlurValInput" class="val-input" min="0"
-                                max="20"></label>
+                        <div class="slider-head">
+                            <label for="bgBlur">Background Blur</label>
+                            <span class="slider-ctrl">
+                                <input type="number" id="bgBlurValInput" class="val-input" min="0" max="20">
+                                <button type="button" class="reset-btn" id="bgBlurReset" title="Reset to default" aria-label="Reset to default">↺</button>
+                            </span>
+                        </div>
                         <input type="range" id="bgBlur" min="0" max="20" value="0">
                     </div>
 
@@ -249,7 +504,8 @@
                     <div class="setting-item">
                         <label>Tab Icon Source</label>
                         <select id="tabFaviconSource">
-                            <option value="default">Default Chrome</option>
+                            <option value="default">New Tab Logo</option>
+                            <option value="chrome">Chrome Default</option>
                             <option value="color">Simple Color Dot</option>
                             <option value="url">Image URL</option>
                             <option value="file">Upload Image</option>
@@ -284,9 +540,10 @@
                     </div>
                     <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
 
-                    <div style="display: flex; gap: 10px;">
-                        <button id="addShortcutBtn" class="primary-btn">Add New Shortcut</button>
-                        <button id="autoMatchIconsBtn" class="primary-btn" style="background-color: #f57c00;">Auto-Match Icons</button>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="addShortcutBtn" class="primary-btn" style="flex:1;">Add New Shortcut</button>
+                        <button id="addFolderBtn" class="primary-btn" style="flex:1; background-color: #455a64;">Add Folder</button>
+                        <button id="autoMatchIconsBtn" class="primary-btn" style="flex-basis:100%; background-color: #f57c00;">Auto-Match Icons</button>
                     </div>
                     <div id="shortcutsList" class="shortcuts-list">
                         <!-- List items will be injected here -->
@@ -306,13 +563,21 @@
                         <input type="file" id="importDataInput" accept=".json" style="display: none;">
                         <button id="importDataBtn" class="primary-btn" style="background-color: #2e7d32;">Import Backup</button>
                     </div>
+                    <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+                    <div class="setting-item">
+                        <h3>Reset Settings</h3>
+                        <p style="font-size: 12px; color: #888; margin-bottom: 10px;">Restore every setting
+                            (layout, theme, background, font…) to its default. Your shortcuts are kept.</p>
+                        <button id="resetSettingsBtn" class="danger-btn">Reset to Defaults</button>
+                    </div>
 
                     <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #666; line-height: 1.4;">
                         <p><strong>Privacy Notice:</strong> Your data is completely private. This extension does not collect, track, or share any of your information.</p>
                         <p style="margin-top: 5px;">Created by Fernando Granco | <a href="https://github.com/fernando-granco/NewTab" target="_blank" style="color: #888; text-decoration: none; border-bottom: 1px dotted #888;">GitHub</a></p>
-                        <p style="margin-top: 5px; font-size: 10px; opacity: 0.7;">Dashboard icons provided by <a href="https://github.com/homarr-labs/dashboard-icons" target="_blank" style="color: #666; text-decoration: underline;">homarr-labs</a> (Apache-2.0 License).</p>
+                        <p style="margin-top: 5px; font-size: 10px; opacity: 0.7;">Icons provided by <a href="https://dashboardicons.com/" target="_blank" style="color: #666; text-decoration: underline;">dashboard icons</a> (Apache-2.0 License).</p>
                     </div>
                 </div>
+                </div><!-- /.settings-content -->
             </div>
         </div>
     </div>
@@ -361,6 +626,29 @@
                         <input type="color" id="siteColor" value="#ffffff">
                     </div>
                     <div class="form-group">
+                        <label>Folder</label>
+                        <select id="siteFolder"></select>
+                    </div>
+                    <div class="form-group" id="sitePageGroup">
+                        <label>Page</label>
+                        <select id="sitePage"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Number Key <span style="font-size: 11px; color:#888;">(press this digit to open)</span></label>
+                        <select id="siteHotkey">
+                            <option value="">None</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label
                             style="display: flex; align-items: center; justify-content: flex-start; gap: 10px; cursor: pointer;">
                             <input type="checkbox" id="excludeFromOpenAll">
@@ -372,6 +660,46 @@
             </div>
         </div>
     </div>
+
+    <!-- Folder overlay -->
+    <div id="folderModal" class="modal">
+        <div class="modal-content folder-modal-content">
+            <div class="modal-header">
+                <h2 id="folderModalTitle">Folder</h2>
+                <span class="close" id="folderClose">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="folderGrid" class="grid folder-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Folder -->
+    <div id="folderEditModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="folderEditTitle">New Folder</h2>
+                <span class="close" id="folderEditClose">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="folderEditForm">
+                    <input type="hidden" id="folderEditId">
+                    <div class="form-group">
+                        <label>Folder Name</label>
+                        <input type="text" id="folderEditName" required placeholder="e.g. Work">
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <input type="color" id="folderEditColor" value="#ffffff">
+                    </div>
+                    <button type="submit" class="primary-btn">Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right-click tile menu -->
+    <div id="tileMenu" class="tile-menu" style="display:none;"></div>
 
     <script src="script.js"></script>
 </body>

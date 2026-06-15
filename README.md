@@ -1,40 +1,64 @@
-# New Tab - Store Listing Description
+# New Tab
 
-Experience a cleaner, faster, and more beautiful browsing experience with this premium New Tab extension. Transform your browser's landing page into a personalized dashboard designed for efficiency and aesthetic excellence.
+A fast, private new-tab page for Chrome. Open a tab and your shortcuts are
+right there in a clean grid, arranged exactly the way you like them.
 
-### SPEED & EFFICIENCY
-Stop wasting time searching for your favorite links. Your most important sites are always one click away in a perfectly organized grid.
+I built this because every new-tab page I tried was either cluttered with
+things I don't use or too locked down to make my own. This one opens instantly,
+shows the sites I actually visit, and gets out of the way.
 
-### PROFESSIONAL CUSTOMIZATION
-Unlike generic new tab pages, this extension gives you total control:
-- **Unified Layout**: All elements scale perfectly using our responsive design system.
-- **Grid Fine-Tuning**: Independently adjust row and column gaps for the perfect look.
-- **Precision Movement**: Position the entire UI vertically to match your favorite desktop wallpaper.
-- **Icon Styling**: Choose between Circle or Square icons, toggle backgrounds, and show/hide text labels.
+![New Tab](Screenshot0.png)
 
-### NATIVE SEARCH INTEGRATION
-The extension now integrates seamlessly with your browser's default search engine. The search bar acts as a direct interface to your preferred search provider (Google, Bing, DuckDuckGo, etc.), ensuring a consistent and policy-compliant experience.
+## What it does
 
-### PREMIUM ICON LIBRARY & AUTO-MATCH
-- **DashboardIcons Integration**: Access over 1,800+ professional icons directly within the extension.
-- **Smart Auto-Match**: With one click, the extension scans your shortcuts and automatically pairs them with high-definition SVGs from the DashboardIcons database.
+- **Your layout** — adjust icon size, spacing, and column count, and nudge the
+  whole grid up or down so it sits nicely over your wallpaper.
+- **Folders & pages** — group shortcuts into folders (drag a tile onto a folder
+  to file it away) and spread them across multiple pages you flip through with
+  the dots or arrow keys.
+- **The right icon, every time** — favicons are fetched automatically, or pick
+  from 1,800+ crisp icons in the open-source [dashboard icons](https://dashboardicons.com/)
+  set, paste an image URL, or upload your own.
+- **Sharp and instant** — icons are cached locally, so they load immediately
+  and stay crisp on big 4K screens.
+- **Themes** — one-click presets, plus full control over the accent color,
+  background gradient, labels, and even your own custom CSS.
+- **Your background** — a built-in gradient, a solid color, an image from the
+  web, or one from your computer, with optional blur.
+- **Your font** — keep the bundled one, choose a system font, upload a font
+  file, or point it at a Google Font (downloaded once, then it works offline).
+- **Keyboard launch** — assign the digits 1–9 to your favorite shortcuts and
+  open them with a single keypress.
+- **Native search** — an optional search bar, fully resizable and reshapable,
+  that uses whatever search engine your browser already uses. No middleman.
+- **Quality-of-life** — import a folder of bookmarks at once, right-click a tile
+  for quick actions, launch your whole routine with "Open All", and back
+  everything up to a file you can restore on another computer.
 
-### BEAUTIFUL BACKGROUNDS
-Set the mood with advanced background options:
-- Stunning radial gradients.
-- Solid professional colors.
-- Custom image URLs or direct file uploads.
-- Adjustable blur effects for that premium glassmorphism feel.
+## Privacy
 
-### ADVANCED UTILITIES
-- **Draggable Settings**: Customize your page without blocking your view—just drag the settings panel out of the way.
-- **Bookmark Import**: Instantly populate your shortcuts by importing your favorite Chrome bookmark folders.
-- **Smart Reordering**: Drag and drop icons to organize your favorites exactly how you want them.
-- **"Open All" Master Button**: Launch your entire workflow with one click (with smart site exclusion support).
-- **Backup & Restore**: Export your entire configuration to a portable JSON file and import it on any device to keep your dashboard synchronized.
+No tracking, no analytics, nothing phoned home. Your shortcuts and settings
+live in your browser's local storage and nowhere else. The only time the
+extension reaches the internet is to fetch a site's icon (which it then caches
+locally so it won't ask again) or, if you choose the Google Fonts option, to
+load that font. Nothing about you is ever collected or sent anywhere.
 
-### PRIVACY FIRST
-Privacy is our priority. We do not collect your data, track your history, or send your information to external servers. Your settings and shortcuts are stored locally on your machine.
+## Install
 
----
-Upgrade your new tab today—Simple, sleek, and strictly yours.
+**From the Chrome Web Store:** search for "New Tab" or use the listing link.
+
+**From source:**
+1. Download or clone this repository.
+2. Open `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and select the project folder.
+
+## Built with
+
+Plain HTML, CSS, and JavaScript — no build step, no frameworks. The
+[Inter](https://rsms.me/inter/) font (SIL Open Font License) is bundled so the
+page never depends on a font server. Icons courtesy of
+[dashboard icons](https://dashboardicons.com/) (Apache-2.0).
+
+## License
+
+See [LICENSE](LICENSE).
