@@ -42,6 +42,32 @@ const defaultSettings = {
     enableNumberKeys: true, // press 1-9 to open the shortcut assigned that digit
     hotkeyScope: 'universal', // 'universal' (one map) or 'page' (per-page digits)
     showHotkeyBadge: true, // show the little number badge on assigned tiles
+    folderOpenStyle: 'around', // 'around' (wraps the icon), 'anchored' (beside it), 'center', or 'custom'
+    folderIconScale: 75, // size of icons inside a folder, as a % of normal icon size
+    // Used only by the 'custom' style. X/Y are percentages of the free space,
+    // so 0 = flush left/top, 50 = centred, 100 = flush right/bottom.
+    folderCustomX: 50,
+    folderCustomY: 50,
+    folderCustomWidth: 420,
+    folderCustomHeight: 320,
+    // Folder appearance
+    folderPadding: 20,        // px of empty space around the icons in a folder
+    folderGap: 20,            // px between icons inside a folder
+    folderTitle: 'top',       // 'top' | 'bottom' | 'hidden'
+    folderOpacity: 100,       // folder panel background opacity, %
+    folderBlur: false,        // frost the page behind an open folder
+    // Page navigation arrows
+    pageArrows: 'both',       // 'both' | 'left' | 'right' | 'none'
+    pageArrowStyle: 'chevron',// 'chevron' | 'triangle' | 'circle' | 'square'
+    pageArrowColor: '#ffffff',
+    pageArrowSize: 40,        // px
+    pageArrowOpacity: 45,     // % when idle (full opacity on hover)
+    pageArrowPosition: 'edge',// 'edge' (screen sides) or 'grid' (beside the icons)
+    pageArrowGap: 16,         // px between the arrow and the screen edge / icons
+    pageArrowAnchor: 'current',// 'current' page, 'first' page, or the 'widest' page
+    showPageDots: true,
+    // Per-page layout overrides: { '1': { iconSize: 120, colCount: 6, ... } }
+    pageOverrides: {},
     enableContextMenu: true, // right-click a tile for quick actions
     confirmOpenAll: true, // ask before opening many tabs via "Open All"
     bgType: 'gradient', // gradient, color, url, file
@@ -81,17 +107,41 @@ const defaultSettings = {
     labelScale: 14,            // label font size as a % of icon size (14 == the original)
     labelColor: '#eeeeee',     // label text color
     labelWeight: 500,          // label font weight
-    customCss: '',             // advanced: user CSS, injected verbatim (empty = nothing)
+    customCss: '',             // advanced local CSS; remote @import/url() resources are blocked
+    // Settings window colors
+    // Panel colors are overrides: empty means "use the built-in color, and
+    panelBgColor: '',          // main panel surface
+    panelAltColor: '',         // sidebar + collapsible section backgrounds
+    panelTextColor: '',        // panel text
+    panelTabColor: '',         // highlight behind the selected tab (accent by default)
+    // The gear button that opens this window
+    settingsIconPosition: 'top-right', // top-right | top-left | bottom-left | bottom-right
+    settingsIconSource: 'glyph', // glyph | url | file
+    settingsIconGlyph: '\u2699\uFE0F',
+    settingsIconValue: '',     // image URL, or an uploaded image as a data URL
+    settingsIconOpacity: 30,   // % when idle
+    settingsIconSize: 25,      // reference px (converted to vmin like everything else)
+    settingsIconHidden: false, // fully invisible but still clickable
     themes: []                 // user-saved theme snapshots: [{ name, data:{...} }]
 };
 
-// State
-let sites = JSON.parse(localStorage.getItem('sites')) || defaultSites;
-let settings = JSON.parse(localStorage.getItem('settings')) || defaultSettings;
-const imageCache = {}; // Pre-load IDB images for synchronous rendering
+const {
+    THEME_KEYS,
+    faviconOrigin,
+    isSafeDataUrl,
+    normalizeGoogleFontStylesheetUrl,
+    normalizeHttpsResourceUrl,
+    normalizeShortcutUrl,
+    readStoredJson,
+    sanitizeBackup,
+    sanitizeSettings,
+    sanitizeSites
+} = globalThis.NewTabData;
 
-// Merge defaults in case of new settings
-settings = { ...defaultSettings, ...settings };
+// State
+let sites = sanitizeSites(readStoredJson(localStorage, 'sites', defaultSites), defaultSites);
+let settings = sanitizeSettings(readStoredJson(localStorage, 'settings', defaultSettings), defaultSettings);
+const imageCache = {}; // Pre-load IDB images for synchronous rendering
 
 // Elements
 const grid = document.getElementById('grid');
@@ -109,6 +159,7 @@ const contentWrapper = document.getElementById('contentWrapper');
 // Inputs - Layout
 const iconSizeInput = document.getElementById('iconSize');
 const iconSizeValInput = document.getElementById('iconSizeValInput');
+const colCountInputEl = document.getElementById('colCount');
 const colCountValInput = document.getElementById('colCountValInput');
 const showIconBgInput = document.getElementById('showIconBg');
 const iconShapeInput = document.getElementById('iconShape');
@@ -140,6 +191,19 @@ const labelSettingsGroup = document.getElementById('labelSettingsGroup');
 
 // Inputs - Theme
 const accentColorInput = document.getElementById('accentColor');
+const panelBgColorInput = document.getElementById('panelBgColor');
+const panelAltColorInput = document.getElementById('panelAltColor');
+const panelTextColorInput = document.getElementById('panelTextColor');
+const panelTabColorInput = document.getElementById('panelTabColor');
+const settingsIconSourceInput = document.getElementById('settingsIconSource');
+const settingsIconUrlInput = document.getElementById('settingsIconUrlInput');
+const settingsIconFileInput = document.getElementById('settingsIconFileInput');
+const settingsIconGlyphGroup = document.getElementById('settingsIconGlyphGroup');
+const settingsIconUrlGroup = document.getElementById('settingsIconUrlGroup');
+const settingsIconFileGroup = document.getElementById('settingsIconFileGroup');
+const settingsIconPositionInput = document.getElementById('settingsIconPosition');
+const settingsIconGlyphInput = document.getElementById('settingsIconGlyph');
+const settingsIconHiddenInput = document.getElementById('settingsIconHidden');
 const customCssInput = document.getElementById('customCssInput');
 const themeNameInput = document.getElementById('themeNameInput');
 const themeSaveBtn = document.getElementById('themeSaveBtn');
@@ -230,6 +294,24 @@ const pageTransitionInput = document.getElementById('pageTransition');
 const enableNumberKeysInput = document.getElementById('enableNumberKeys');
 const hotkeyScopeInput = document.getElementById('hotkeyScope');
 const showHotkeyBadgeInput = document.getElementById('showHotkeyBadge');
+const folderOpenStyleInput = document.getElementById('folderOpenStyle');
+const folderCustomGroup = document.getElementById('folderCustomGroup');
+const folderTitleInput = document.getElementById('folderTitle');
+const folderBlurInput = document.getElementById('folderBlur');
+const pageArrowsInput = document.getElementById('pageArrows');
+const pageArrowStyleInput = document.getElementById('pageArrowStyle');
+const pageArrowPositionInput = document.getElementById('pageArrowPosition');
+const pageArrowAnchorInput = document.getElementById('pageArrowAnchor');
+const pageArrowAnchorGroup = document.getElementById('pageArrowAnchorGroup');
+const pageArrowColorInput = document.getElementById('pageArrowColor');
+const pageArrowOptions = document.getElementById('pageArrowOptions');
+const showPageDotsInput = document.getElementById('showPageDots');
+const pagePrevBtn = document.getElementById('pagePrev');
+const pageNextBtn = document.getElementById('pageNext');
+const layoutScopeBar = document.getElementById('layoutScopeBar');
+const layoutScopeInput = document.getElementById('layoutScope');
+const layoutScopeClearBtn = document.getElementById('layoutScopeClear');
+const matchThisIconBtn = document.getElementById('matchThisIconBtn');
 const enableContextMenuInput = document.getElementById('enableContextMenu');
 const confirmOpenAllInput = document.getElementById('confirmOpenAll');
 const pageDots = document.getElementById('pageDots');
@@ -392,7 +474,7 @@ async function inlineOldIdbImage(value, maxSize, quality) {
 async function handleStorageMigrations() {
     let saveNeeded = false;
 
-    for (const site of sites) {
+    for (const site of getAllShortcuts()) {
         if (site.iconSource !== 'file') continue;
         const migrated = await inlineOldIdbImage(site.iconValue, 256);
         if (migrated) { site.iconValue = migrated; saveNeeded = true; }
@@ -457,8 +539,10 @@ function getRemoteIconUrl(site) {
     // (www.google.com/s2/favicons just redirects here — skipping the redirect
     // saves a round trip). size=256 keeps icons crisp on 4K monitors;
     // Google serves the largest version the site actually has.
+    const origin = faviconOrigin(site.url);
+    if (!origin) return null;
     return 'https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL' +
-        `&url=${encodeURIComponent(site.url)}&size=256`;
+        `&url=${encodeURIComponent(origin)}&size=256`;
 }
 
 // Chrome's own favicon store. It holds icons for every site the user has
@@ -501,29 +585,36 @@ function setIconFallbackChain(img, fallbackSources) {
 
 // Pick the best source for a shortcut's <img> (see the ordered list above).
 function setShortcutIcon(img, site) {
+    img.referrerPolicy = 'no-referrer';
     // Custom icons (a pasted URL or an uploaded file) have one true source;
     // if it breaks, fall straight back to the letter tile.
     if ((site.iconSource === 'url' || site.iconSource === 'file') && site.iconValue) {
         img.className = 'full-fill';
+        setIconFallbackChain(img, [createLetterTile(site)]);
         img.src = site.iconValue.startsWith('idb:')
             ? (imageCache[site.iconValue] || '')
             : site.iconValue;
-        setIconFallbackChain(img, [createLetterTile(site)]);
         return;
     }
 
     const remoteUrl = getRemoteIconUrl(site);
-    const cached = imageCache[FAV_PREFIX + remoteUrl];
+    const cached = remoteUrl ? imageCache[FAV_PREFIX + remoteUrl] : null;
     const chromeFavicon = getChromeFaviconUrl(site.url);
     const fallbacks = [];
 
     if (cached) {
+        fallbacks.push(createLetterTile(site));
+        setIconFallbackChain(img, fallbacks);
         img.src = cached; // The happy path: instant, offline, high-res.
-    } else if (navigator.onLine) {
+    } else if (remoteUrl && navigator.onLine) {
+        if (chromeFavicon) fallbacks.push(chromeFavicon);
+        fallbacks.push(createLetterTile(site));
+        setIconFallbackChain(img, fallbacks);
         img.src = remoteUrl;                                  // Show it now...
         cacheRemoteIcon(FAV_PREFIX + remoteUrl, remoteUrl);   // ...cache it for next time.
-        if (chromeFavicon) fallbacks.push(chromeFavicon);
     } else if (chromeFavicon) {
+        fallbacks.push(createLetterTile(site));
+        setIconFallbackChain(img, fallbacks);
         img.src = chromeFavicon; // Offline with nothing cached yet: use Chrome's copy.
     } else {
         img.src = createLetterTile(site);
@@ -531,8 +622,6 @@ function setShortcutIcon(img, site) {
         return;
     }
 
-    fallbacks.push(createLetterTile(site));
-    setIconFallbackChain(img, fallbacks);
 }
 
 // Download a remote icon once and store it in IndexedDB as a data URL.
@@ -540,10 +629,19 @@ function setShortcutIcon(img, site) {
 async function cacheRemoteIcon(cacheKey, url) {
     if (imageCache[cacheKey] || inFlightIconFetches.has(cacheKey)) return;
     inFlightIconFetches.add(cacheKey);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, {
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            signal: controller.signal
+        });
         if (!res.ok) return;
+        const declaredSize = Number(res.headers.get('content-length')) || 0;
+        if (declaredSize > 2 * 1024 * 1024) return;
         const blob = await res.blob();
+        if (!blob.type.startsWith('image/') || blob.size > 2 * 1024 * 1024) return;
         const dataUrl = await new Promise((resolve, reject) => {
             const r = new FileReader();
             r.onload = () => resolve(r.result);
@@ -559,6 +657,7 @@ async function cacheRemoteIcon(cacheKey, url) {
     } catch (e) {
         // Network failure — the <img> fallback chain already covers the screen.
     } finally {
+        clearTimeout(timeout);
         inFlightIconFetches.delete(cacheKey);
     }
 }
@@ -566,7 +665,7 @@ async function cacheRemoteIcon(cacheKey, url) {
 // Drop cached icons for sites that no longer exist (e.g. after a URL edit).
 async function pruneIconCache() {
     try {
-        const wanted = new Set(sites.map(getRemoteIconUrl).map(u => FAV_PREFIX + u));
+        const wanted = new Set(getAllShortcuts().map(getRemoteIconUrl).filter(Boolean).map(u => FAV_PREFIX + u));
         const all = await getAllImagesFromDB();
         for (const key of Object.keys(all)) {
             if (key.startsWith(FAV_PREFIX) && !wanted.has(key)) {
@@ -589,7 +688,6 @@ function debounce(fn, ms = 80) {
 
 async function init() {
     setupEventListeners();
-    loadBookmarkFolders();
 
     // Preload all locally-stored images (custom icons, background, cached
     // favicons) BEFORE the first paint. This lets us render the grid exactly
@@ -609,10 +707,20 @@ async function init() {
     // Drop the animation hook after it plays so drag-reorder re-renders are instant.
     setTimeout(() => grid.classList.remove('first-paint'), 400);
 
+    // The toolbar popup links to newtab.html#settings, which is the way back
+    // in if someone has made the gear invisible.
+    if (location.hash === '#settings') {
+        settingsModal.style.display = 'flex';
+        renderShortcutsList();
+        renderThemeUI();
+    }
+
     // If the tab was opened offline, some icons may be showing fallbacks.
     // The moment the connection returns, repaint so the real icons load
     // (and get cached for the next offline session).
     window.addEventListener('online', renderGrid);
+    // The icon block moves when the window resizes, so re-place the arrows.
+    window.addEventListener('resize', debounce(positionPageArrows, 60));
 
     // One-time legacy data migrations (rare). Only re-render if they changed data.
     handleStorageMigrations().then(changed => {
@@ -649,17 +757,24 @@ function applySettings() {
     // 100px on 1080p is ~9.2vmin. Formula: (val / 10.8)
     const toVmin = (val) => `${(val / 10.8).toFixed(2)}vmin`;
 
-    document.documentElement.style.setProperty('--icon-size', toVmin(settings.iconSize));
-    document.documentElement.style.setProperty('--grid-row-gap', toVmin(settings.gridRowGap));
-    document.documentElement.style.setProperty('--grid-col-gap', toVmin(settings.gridColGap));
+    // Layout values can differ per page, so they are read through pageValue().
+    const pIconSize = pageValue('iconSize');
+    document.documentElement.style.setProperty('--icon-size', toVmin(pIconSize));
+    document.documentElement.style.setProperty('--grid-row-gap', toVmin(pageValue('gridRowGap')));
+    document.documentElement.style.setProperty('--grid-col-gap', toVmin(pageValue('gridColGap')));
+    // Icons inside folders are usually a bit smaller than the ones on the grid.
+    const folderScale = (settings.folderIconScale ?? 75) / 100;
+    document.documentElement.style.setProperty('--folder-icon-size', toVmin(pIconSize * folderScale));
+    document.documentElement.style.setProperty('--folder-padding', toVmin(settings.folderPadding ?? 20));
+    document.documentElement.style.setProperty('--folder-gap', toVmin(settings.folderGap ?? 20));
 
     // Grid Vertical Offset (Applied to wrapper to move everything)
     if (contentWrapper) {
-        contentWrapper.style.transform = `translateY(${toVmin(settings.gridVerticalOffset || 0)})`;
+        contentWrapper.style.transform = `translateY(${toVmin(pageValue('gridVerticalOffset') || 0)})`;
     }
 
     // Grid Columns
-    let cols = settings.colCount;
+    let cols = pageValue('colCount');
     if (cols === 'auto') {
         cols = 5; // Default fallback if user had 'auto'
         settings.colCount = cols;
@@ -668,7 +783,8 @@ function applySettings() {
     }
 
     grid.style.gridTemplateColumns = `repeat(${cols}, var(--icon-size))`;
-    if (colCountValInput) colCountValInput.value = cols;
+    if (colCountValInput) colCountValInput.value = layoutValue('colCount');
+    if (colCountInputEl) colCountInputEl.value = layoutValue('colCount');
 
     // Toggle Classes
     if (!settings.showIconBg) grid.classList.add('no-icon-bg');
@@ -739,13 +855,14 @@ function applySettings() {
         }
     }
 
-    // Update Input Values
-    if (iconSizeInput) iconSizeInput.value = settings.iconSize;
-    if (iconSizeValInput) iconSizeValInput.value = settings.iconSize;
+    // Update Input Values (showing whichever page the Layout tab is editing)
+    if (iconSizeInput) iconSizeInput.value = layoutValue('iconSize');
+    if (iconSizeValInput) iconSizeValInput.value = layoutValue('iconSize');
+    populateLayoutScope();
 
     // Use safe defaults if old settings exist without new properties
-    const rGap = settings.gridRowGap !== undefined ? settings.gridRowGap : 40;
-    const cGap = settings.gridColGap !== undefined ? settings.gridColGap : 40;
+    const rGap = layoutValue('gridRowGap') !== undefined ? layoutValue('gridRowGap') : 40;
+    const cGap = layoutValue('gridColGap') !== undefined ? layoutValue('gridColGap') : 40;
 
     // Grid Gaps
     if (gridRowGapInput) gridRowGapInput.value = rGap;
@@ -754,8 +871,8 @@ function applySettings() {
     if (gridColGapValInput) gridColGapValInput.value = cGap;
 
     if (gridOffsetInput) {
-        gridOffsetInput.value = settings.gridVerticalOffset || 0;
-        if (gridOffsetValInput) gridOffsetValInput.value = settings.gridVerticalOffset || 0;
+        gridOffsetInput.value = layoutValue('gridVerticalOffset') || 0;
+        if (gridOffsetValInput) gridOffsetValInput.value = layoutValue('gridVerticalOffset') || 0;
     }
 
     if (bgBlurInput) bgBlurInput.value = settings.bgBlur;
@@ -876,6 +993,21 @@ function applySettings() {
     root.setProperty('--accent', settings.accentColor || '#3f51b5');
     if (accentColorInput) accentColorInput.value = settings.accentColor || '#3f51b5';
 
+    // Settings window colors
+    // An override sets the variable; leaving it empty removes it so the
+    // stylesheet default (or, for the tab, the accent color) shows through.
+    applyPanelColor(root, '--panel-bg', settings.panelBgColor);
+    applyPanelColor(root, '--panel-alt', settings.panelAltColor);
+    applyPanelColor(root, '--panel-text', settings.panelTextColor);
+    applyPanelColor(root, '--panel-tab', settings.panelTabColor);
+    // The pickers always show the colour actually in use.
+    if (panelBgColorInput) panelBgColorInput.value = settings.panelBgColor || PANEL_COLOR_FALLBACKS.panelBgColor;
+    if (panelAltColorInput) panelAltColorInput.value = settings.panelAltColor || PANEL_COLOR_FALLBACKS.panelAltColor;
+    if (panelTextColorInput) panelTextColorInput.value = settings.panelTextColor || PANEL_COLOR_FALLBACKS.panelTextColor;
+    if (panelTabColorInput) panelTabColorInput.value = settings.panelTabColor || settings.accentColor || '#3f51b5';
+
+    applySettingsIcon();
+
     // Labels (scale is stored as a percentage of icon size)
     const labelScale = settings.labelScale ?? 14;
     root.setProperty('--label-scale', (labelScale / 100).toString());
@@ -906,10 +1038,110 @@ function applySettings() {
     if (enableNumberKeysInput) enableNumberKeysInput.checked = settings.enableNumberKeys !== false;
     if (hotkeyScopeInput) hotkeyScopeInput.value = settings.hotkeyScope || 'universal';
     if (showHotkeyBadgeInput) showHotkeyBadgeInput.checked = settings.showHotkeyBadge !== false;
+    if (folderOpenStyleInput) folderOpenStyleInput.value = settings.folderOpenStyle || 'around';
+    if (folderTitleInput) folderTitleInput.value = settings.folderTitle || 'top';
+    if (folderBlurInput) folderBlurInput.checked = !!settings.folderBlur;
+    if (pageArrowsInput) pageArrowsInput.value = settings.pageArrows || 'both';
+    if (pageArrowStyleInput) pageArrowStyleInput.value = settings.pageArrowStyle || 'chevron';
+    if (pageArrowPositionInput) pageArrowPositionInput.value = settings.pageArrowPosition || 'edge';
+    if (pageArrowAnchorInput) pageArrowAnchorInput.value = settings.pageArrowAnchor || 'current';
+    // Anchoring only matters when the arrows follow the icons.
+    if (pageArrowAnchorGroup) {
+        pageArrowAnchorGroup.style.display =
+            (settings.pageArrowPosition === 'grid') ? 'block' : 'none';
+    }
+    if (pageArrowColorInput) pageArrowColorInput.value = settings.pageArrowColor || '#ffffff';
+    if (showPageDotsInput) showPageDotsInput.checked = settings.showPageDots !== false;
+    if (pageArrowOptions) pageArrowOptions.style.display = (settings.pageArrows === 'none') ? 'none' : 'block';
+    renderPageArrows();
+    // Keep every folder slider showing its saved value.
+    syncSliderPair('folderIconScale', settings.folderIconScale ?? 75);
+    syncSliderPair('folderPadding', settings.folderPadding ?? 20);
+    syncSliderPair('folderGap', settings.folderGap ?? 20);
+    syncSliderPair('folderOpacity', settings.folderOpacity ?? 100);
+    syncSliderPair('pageArrowSize', settings.pageArrowSize ?? 40);
+    syncSliderPair('pageArrowOpacity', settings.pageArrowOpacity ?? 45);
+    syncSliderPair('pageArrowGap', settings.pageArrowGap ?? 16);
+    syncSliderPair('folderCustomX', settings.folderCustomX ?? 50);
+    syncSliderPair('folderCustomY', settings.folderCustomY ?? 50);
+    syncSliderPair('folderCustomWidth', settings.folderCustomWidth ?? 420);
+    syncSliderPair('folderCustomHeight', settings.folderCustomHeight ?? 320);
+    updateFolderInputsDisplay();
     if (enableContextMenuInput) enableContextMenuInput.checked = settings.enableContextMenu !== false;
     if (confirmOpenAllInput) confirmOpenAllInput.checked = settings.confirmOpenAll !== false;
 
     updateBgInputsDisplay();
+}
+
+// Place, style and (optionally) hide the gear button. When hidden it keeps
+// its exact position and stays clickable — it is simply invisible.
+// What each panel color looks like when it hasn't been overridden. The
+// selected tab is special: it follows the accent color instead.
+const PANEL_COLOR_FALLBACKS = {
+    panelBgColor: '#242424',
+    panelAltColor: '#1d1d1d',
+    panelTextColor: '#ffffff'
+};
+
+function applyPanelColor(root, cssVar, value) {
+    if (value) root.setProperty(cssVar, value);
+    else root.removeProperty(cssVar);
+}
+
+function applySettingsIcon() {
+    if (!settingsBtn) return;
+    const toVmin = (val) => `${(val / 10.8).toFixed(2)}vmin`;
+    const corner = settings.settingsIconPosition || 'top-right';
+    const inset = '2vmin';
+
+    // Neutralise all four sides with `auto` — clearing them would fall back to
+    // the stylesheet's top/right and leave the button stretched between corners.
+    settingsBtn.style.top = settingsBtn.style.bottom = 'auto';
+    settingsBtn.style.left = settingsBtn.style.right = 'auto';
+    settingsBtn.style[corner.startsWith('top') ? 'top' : 'bottom'] = inset;
+    settingsBtn.style[corner.endsWith('left') ? 'left' : 'right'] = inset;
+
+    const iconSource = settings.settingsIconSource || 'glyph';
+    settingsBtn.textContent = '';
+    if ((iconSource === 'url' || iconSource === 'file') && settings.settingsIconValue) {
+        const img = document.createElement('img');
+        img.className = 'settings-icon-img';
+        img.alt = 'Settings';
+        img.draggable = false;
+        img.src = settings.settingsIconValue;
+        // A broken link would leave an empty button, so fall back to the glyph.
+        img.onerror = () => { settingsBtn.textContent = settings.settingsIconGlyph || '\u2699\uFE0F'; };
+        settingsBtn.appendChild(img);
+    } else {
+        settingsBtn.textContent = settings.settingsIconGlyph || '\u2699\uFE0F';
+    }
+    settingsBtn.style.fontSize = toVmin(settings.settingsIconSize ?? 25);
+    settingsBtn.style.setProperty('--settings-icon-opacity',
+        String((settings.settingsIconOpacity ?? 30) / 100));
+    settingsBtn.classList.toggle('invisible-icon', !!settings.settingsIconHidden);
+
+    if (settingsIconPositionInput) settingsIconPositionInput.value = corner;
+    if (settingsIconGlyphInput && document.activeElement !== settingsIconGlyphInput) {
+        settingsIconGlyphInput.value = settings.settingsIconGlyph || '\u2699\uFE0F';
+    }
+    if (settingsIconHiddenInput) settingsIconHiddenInput.checked = !!settings.settingsIconHidden;
+    if (settingsIconSourceInput) settingsIconSourceInput.value = iconSource;
+    if (settingsIconUrlInput && document.activeElement !== settingsIconUrlInput) {
+        settingsIconUrlInput.value = iconSource === 'url' ? settings.settingsIconValue : '';
+    }
+    if (settingsIconGlyphGroup) settingsIconGlyphGroup.style.display = iconSource === 'glyph' ? 'block' : 'none';
+    if (settingsIconUrlGroup) settingsIconUrlGroup.style.display = iconSource === 'url' ? 'block' : 'none';
+    if (settingsIconFileGroup) settingsIconFileGroup.style.display = iconSource === 'file' ? 'block' : 'none';
+    syncSliderPair('settingsIconOpacity', settings.settingsIconOpacity ?? 30);
+    syncSliderPair('settingsIconSize', settings.settingsIconSize ?? 25);
+}
+
+// Keep the slider + number box of a control in step with a saved value.
+function syncSliderPair(id, value) {
+    const slider = document.getElementById(id);
+    const num = document.getElementById(id + 'ValInput');
+    if (slider) slider.value = value;
+    if (num) num.value = value;
 }
 
 function updateSearchIconInputsDisplay() {
@@ -937,6 +1169,15 @@ function updateSearchIconInputsDisplay() {
 //
 // Whatever the source, if it fails the page falls back to Inter, so the UI is
 // never left without a font.
+
+// '#rrggbb' + opacity -> 'rgba(r, g, b, a)'. Falls back to the value as-is
+// so a malformed color can never blank out a panel.
+function rgbaFromHex(hex, alpha) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
 
 const GFONT_PREFIX = 'gfont:'; // IndexedDB key prefix for cached Google Fonts.
 
@@ -1022,20 +1263,57 @@ async function applyFont() {
 // with no host permissions. We grab the basic-latin face (the one that covers
 // normal English text) so everyday labels render in the chosen font.
 async function fetchGoogleFontAsDataUrl(cssUrl) {
-    const css = await (await fetch(cssUrl)).text();
-    const faces = css.split('@font-face').slice(1);
-    // Prefer the @font-face block whose unicode-range covers basic latin.
-    const latin = faces.find(b => /unicode-range:[^;]*u\+0+\b|unicode-range:[^;]*0000/i.test(b));
-    const block = latin || faces[0] || '';
-    const match = block.match(/url\((https:\/\/[^)]+)\)/i);
-    if (!match) throw new Error('No font file found in the Google Fonts CSS.');
-    const blob = await (await fetch(match[1])).blob();
-    return await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = reject;
-        r.readAsDataURL(blob);
-    });
+    const safeCssUrl = normalizeGoogleFontStylesheetUrl(cssUrl);
+    if (!safeCssUrl) throw new Error('Use a fonts.googleapis.com CSS URL.');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+        const cssResponse = await fetch(safeCssUrl, {
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            signal: controller.signal
+        });
+        if (!cssResponse.ok) throw new Error(`Google Fonts returned ${cssResponse.status}.`);
+        const css = await cssResponse.text();
+        if (css.length > 256 * 1024) throw new Error('Google Fonts CSS was unexpectedly large.');
+        const faces = css.split('@font-face').slice(1);
+        // Prefer the @font-face block whose unicode-range covers basic latin.
+        const latin = faces.find(b => /unicode-range:[^;]*u\+0+\b|unicode-range:[^;]*0000/i.test(b));
+        const block = latin || faces[0] || '';
+        const match = block.match(/url\((https:\/\/[^)]+)\)/i);
+        const fontUrl = match && normalizeHttpsResourceUrl(match[1], ['fonts.gstatic.com']);
+        if (!fontUrl) throw new Error('No trusted font file found in the Google Fonts CSS.');
+        const fontResponse = await fetch(fontUrl, {
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            signal: controller.signal
+        });
+        if (!fontResponse.ok) throw new Error(`Google Fonts returned ${fontResponse.status}.`);
+        const declaredSize = Number(fontResponse.headers.get('content-length')) || 0;
+        if (declaredSize > 5 * 1024 * 1024) throw new Error('Font file is too large.');
+        const blob = await fontResponse.blob();
+        if (blob.size > 5 * 1024 * 1024) throw new Error('Font file is too large.');
+        return await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(blob);
+        });
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+function openShortcutUrl(value, newTab) {
+    const url = normalizeShortcutUrl(value);
+    if (!url) return false;
+    if (newTab) {
+        const opened = window.open(url, '_blank', 'noopener,noreferrer');
+        if (opened) opened.opener = null;
+    } else {
+        window.location.assign(url);
+    }
+    return true;
 }
 
 // Read the first family name out of a Google Fonts URL so we can name it in
@@ -1046,6 +1324,14 @@ function familyFromGoogleFontsUrl(url) {
         return family ? family.split(':')[0].replace(/\+/g, ' ').trim() : null;
     } catch (e) {
         return null; // Not a valid URL — caller falls back to Inter.
+    }
+}
+
+// The position/size sliders only apply to the "Custom" folder style.
+function updateFolderInputsDisplay() {
+    if (folderCustomGroup) {
+        folderCustomGroup.style.display =
+            (settings.folderOpenStyle === 'custom') ? 'block' : 'none';
     }
 }
 
@@ -1137,7 +1423,10 @@ function buildGradient() {
 // Inject (or update) the user's Custom CSS as a single <style> tag.
 function applyCustomCss() {
     let tag = document.getElementById('userCustomCss');
-    if (!settings.customCss) {
+    const css = settings.customCss || '';
+    // Custom CSS is local-only. Blocking imports and url() prevents a backup
+    // file from turning styling into an undeclared network channel.
+    if (!css || /@import\b|url\s*\(/i.test(css)) {
         if (tag) tag.remove();
         return;
     }
@@ -1146,7 +1435,7 @@ function applyCustomCss() {
         tag.id = 'userCustomCss';
         document.head.appendChild(tag);
     }
-    tag.textContent = settings.customCss;
+    tag.textContent = css;
 }
 
 // =========================================================================
@@ -1155,14 +1444,6 @@ function applyCustomCss() {
 // A "theme" is a snapshot of the look-and-feel settings (never the shortcut
 // list). Applying one only overwrites the keys it contains, so a preset that
 // sets just colors leaves the user's layout untouched.
-const THEME_KEYS = [
-    'accentColor', 'iconShape', 'iconBgColor', 'showIconBg',
-    'showLabels', 'labelScale', 'labelColor', 'labelWeight',
-    'iconSize', 'gridRowGap', 'gridColGap', 'colCount', 'gridVerticalOffset',
-    'bgType', 'bgValue', 'bgBlur', 'gradientColor1', 'gradientColor2', 'gradientAngle',
-    'fontSource', 'fontValue', 'openAllColor', 'openAllShape'
-];
-
 const BUILT_IN_THEMES = [
     { name: 'Default', data: { accentColor: '#3f51b5', showIconBg: false, iconShape: 'circle', iconBgColor: '#ffffff', bgType: 'gradient', gradientColor1: '#2a2a2a', gradientColor2: '#111111', gradientAngle: 'radial', bgBlur: 0, labelScale: 14, labelColor: '#eeeeee', labelWeight: 500 } },
     { name: 'Midnight', data: { accentColor: '#5c6bc0', showIconBg: true, iconShape: 'square', iconBgColor: '#1b1f2a', bgType: 'gradient', gradientColor1: '#1f2c4d', gradientColor2: '#04060f', gradientAngle: 'radial', labelColor: '#c8cee0', labelWeight: 500 } },
@@ -1248,8 +1529,77 @@ function renderThemeUI() {
 // Every top-level item has a `page` (0-based; defaults to 0 = the first page).
 let currentPage = 0;
 
+// =========================================================================
+// Per-page layout overrides
+// =========================================================================
+// These five settings can differ from page to page. A page only stores the
+// ones it actually overrides; anything missing falls back to the global value,
+// so a fresh setup behaves exactly as it did before pages existed.
+const PAGE_LAYOUT_KEYS = ['iconSize', 'colCount', 'gridRowGap', 'gridColGap', 'gridVerticalOffset'];
+
+// Which page the Layout tab is editing: 'global', or a page index.
+let layoutScope = 'global';
+
+// The value actually used to draw a page.
+function pageValue(key, page = currentPage) {
+    const overrides = (settings.pageOverrides || {})[page];
+    return (overrides && overrides[key] !== undefined) ? overrides[key] : settings[key];
+}
+
+// The value the Layout tab should show and edit.
+function layoutValue(key) {
+    if (layoutScope !== 'global' && PAGE_LAYOUT_KEYS.includes(key)) return pageValue(key, layoutScope);
+    return settings[key];
+}
+
+// Write a layout value to the global settings or to the page being edited.
+function setLayoutValue(key, value) {
+    if (layoutScope !== 'global' && PAGE_LAYOUT_KEYS.includes(key)) {
+        settings.pageOverrides = settings.pageOverrides || {};
+        settings.pageOverrides[layoutScope] = settings.pageOverrides[layoutScope] || {};
+        settings.pageOverrides[layoutScope][key] = value;
+    } else {
+        settings[key] = value;
+    }
+}
+
+// Drop a page's overrides so it follows the global layout again.
+function clearPageOverrides(page) {
+    if (settings.pageOverrides) delete settings.pageOverrides[page];
+}
+
+// Fill the "Applies to" picker with one entry per page.
+function populateLayoutScope() {
+    if (!layoutScopeInput) return;
+    const count = settings.pageCount || 1;
+    if (count <= 1) layoutScope = 'global'; // nothing to scope to yet
+    layoutScopeInput.innerHTML = '';
+    const all = document.createElement('option');
+    all.value = 'global';
+    all.textContent = 'All pages';
+    layoutScopeInput.appendChild(all);
+    for (let i = 0; i < count; i++) {
+        const o = document.createElement('option');
+        o.value = String(i);
+        const overridden = settings.pageOverrides && settings.pageOverrides[i];
+        o.textContent = `Page ${i + 1}${overridden ? ' (custom)' : ''}`;
+        layoutScopeInput.appendChild(o);
+    }
+    layoutScopeInput.value = String(layoutScope);
+    if (layoutScopeBar) layoutScopeBar.style.display = count > 1 ? 'flex' : 'none';
+    if (layoutScopeClearBtn) {
+        const hasOverride = layoutScope !== 'global'
+            && settings.pageOverrides && settings.pageOverrides[layoutScope];
+        layoutScopeClearBtn.style.display = hasOverride ? 'inline-flex' : 'none';
+    }
+}
+
+
 const isFolder = (item) => item && item.type === 'folder';
 const itemPage = (item) => Math.min(item.page || 0, Math.max(0, (settings.pageCount || 1) - 1));
+
+// Top-level items on a given page.
+const itemsOnPage = (page) => sites.filter(item => itemPage(item) === page);
 
 // Top-level items shown on the page currently in view.
 function itemsOnCurrentPage() {
@@ -1324,6 +1674,7 @@ function buildShortcutTile(site) {
     a.className = 'icon-item';
     a.title = site.name;
     a.target = settings.openShortcutsNewTab ? '_blank' : '_self';
+    if (a.target === '_blank') a.rel = 'noopener noreferrer';
 
     const circle = document.createElement('div');
     circle.className = 'icon-circle';
@@ -1360,7 +1711,7 @@ function buildFolderTile(folder) {
     a.href = '#';
     a.className = 'icon-item folder-item';
     a.title = folder.name;
-    a.onclick = (e) => { e.preventDefault(); openFolder(folder.id); };
+    a.onclick = (e) => { e.preventDefault(); openFolder(folder.id, a); };
 
     const circle = document.createElement('div');
     circle.className = 'icon-circle folder-circle';
@@ -1392,10 +1743,11 @@ function buildFolderTile(folder) {
 
 // Page indicator dots (only when there's more than one page).
 function renderPageDots() {
+    renderPageArrows();
     if (!pageDots) return;
     const count = settings.pageCount || 1;
     pageDots.innerHTML = '';
-    if (count <= 1) { pageDots.style.display = 'none'; return; }
+    if (count <= 1 || settings.showPageDots === false) { pageDots.style.display = 'none'; return; }
     pageDots.style.display = 'flex';
     for (let i = 0; i < count; i++) {
         const dot = document.createElement('button');
@@ -1405,6 +1757,104 @@ function renderPageDots() {
         dot.onclick = () => goToPage(i);
         pageDots.appendChild(dot);
     }
+}
+
+// Left/right arrows for flipping pages with the mouse. They wrap around,
+// so with two pages either arrow simply toggles between them.
+function renderPageArrows() {
+    if (!pagePrevBtn || !pageNextBtn) return;
+    const count = settings.pageCount || 1;
+    const mode = settings.pageArrows || 'both';
+    const visible = count > 1 && mode !== 'none';
+    const style = settings.pageArrowStyle || 'chevron';
+    const glyphs = style === 'triangle'
+        ? ['\u25C0', '\u25B6']
+        : ['\u2039', '\u203A'];
+
+    [[pagePrevBtn, 'prev', glyphs[0], mode === 'both' || mode === 'left'],
+     [pageNextBtn, 'next', glyphs[1], mode === 'both' || mode === 'right']]
+        .forEach(([btn, side, glyph, allowed]) => {
+            btn.style.display = (visible && allowed) ? 'flex' : 'none';
+            btn.textContent = glyph;
+            btn.className = `page-arrow ${side} style-${style}`;
+            btn.style.setProperty('--arrow-size', `${settings.pageArrowSize ?? 40}px`);
+            btn.style.setProperty('--arrow-color', settings.pageArrowColor || '#ffffff');
+            btn.style.setProperty('--arrow-opacity', String((settings.pageArrowOpacity ?? 45) / 100));
+        });
+
+    positionPageArrows();
+}
+
+// Settings are stored in "reference pixels" (based on a 1080p screen) and
+// turned into vmin for display; this converts one to real pixels.
+const refPxToPx = (value) => (value / 10.8) * Math.min(window.innerWidth, window.innerHeight) / 100;
+
+// How wide the row of icons on a page is. Calculated rather than measured,
+// so we can ask about a page that isn't currently on screen.
+function pageIconBlockWidth(page) {
+    const columns = pageValue('colCount', page) || 1;
+    const filled = Math.max(1, Math.min(columns, itemsOnPage(page).length));
+    const iconPx = refPxToPx(pageValue('iconSize', page));
+    const gapPx = refPxToPx(pageValue('gridColGap', page));
+    return filled * iconPx + (filled - 1) * gapPx;
+}
+
+// Arrows sit either against the sides of the screen, or tucked just outside
+// the block of icons so they stay close to what you're clicking. The icon
+// block is measured from the tiles themselves because the grid element
+// stretches the full width of the page.
+function positionPageArrows() {
+    if (!pagePrevBtn || !pageNextBtn) return;
+    const gap = settings.pageArrowGap ?? 16;
+    const size = settings.pageArrowSize ?? 40;
+
+    if ((settings.pageArrowPosition || 'edge') !== 'grid') {
+        pagePrevBtn.style.left = `${gap}px`;
+        pageNextBtn.style.right = `${gap}px`;
+        return;
+    }
+
+    // By default the arrows hug whatever is on screen now. The other anchors
+    // pin them to one page's width so they stay put as you flip pages.
+    const anchor = settings.pageArrowAnchor || 'current';
+    let iconsLeft;
+    let iconsRight;
+
+    if (anchor === 'current') {
+        const tiles = grid.querySelectorAll('.icon-item');
+        if (tiles.length === 0) { // nothing on this page to measure against
+            pagePrevBtn.style.left = `${gap}px`;
+            pageNextBtn.style.right = `${gap}px`;
+            return;
+        }
+        iconsLeft = Infinity;
+        iconsRight = -Infinity;
+        tiles.forEach(tile => {
+            const r = tile.getBoundingClientRect();
+            iconsLeft = Math.min(iconsLeft, r.left);
+            iconsRight = Math.max(iconsRight, r.right);
+        });
+    } else {
+        const pages = settings.pageCount || 1;
+        let width = pageIconBlockWidth(0);
+        if (anchor === 'widest') {
+            for (let p = 1; p < pages; p++) width = Math.max(width, pageIconBlockWidth(p));
+        }
+        // The grid is centred, so the block sits symmetrically in the window.
+        iconsLeft = (window.innerWidth - width) / 2;
+        iconsRight = iconsLeft + width;
+    }
+
+    // Never let an arrow slide off screen when the grid is very wide.
+    const edge = 4;
+    pagePrevBtn.style.left = `${Math.max(edge, iconsLeft - gap - size)}px`;
+    pageNextBtn.style.right = `${Math.max(edge, window.innerWidth - iconsRight - gap - size)}px`;
+}
+
+function stepPage(delta) {
+    const count = settings.pageCount || 1;
+    if (count <= 1) return;
+    goToPage((currentPage + delta + count) % count);
 }
 
 function goToPage(index) {
@@ -1441,26 +1891,135 @@ function setPageCount(n) {
     saveState();
     renderGrid();
     if (pageCountDisplay) pageCountDisplay.textContent = n;
+    populateLayoutScope(); // the per-page picker gains/loses entries
 }
 
 // --- Folder overlay ---
-function openFolder(folderId) {
+// `tileEl` is the folder icon that was clicked. In the default "anchored"
+// style the panel opens right next to that icon and grows out of it, the way
+// folders behave on Android/iOS. In "center" style it opens in the middle of
+// the screen instead.
+function openFolder(folderId, tileEl) {
     const folder = sites.find(it => isFolder(it) && String(it.id) === String(folderId));
     if (!folder) return;
     folderModalTitle.textContent = folder.name;
     folderGrid.innerHTML = '';
-    (folder.children || []).forEach(child => {
+    const children = folder.children || [];
+    children.forEach(child => {
         const tile = buildShortcutTile(child);
         tile.addEventListener('contextmenu', (e) => openTileMenu(e, child));
         folderGrid.appendChild(tile);
     });
-    if (!folder.children || folder.children.length === 0) {
+    if (children.length === 0) {
         const empty = document.createElement('p');
         empty.style.cssText = 'color:#888;text-align:center;width:100%;';
         empty.textContent = 'This folder is empty. Add shortcuts to it from Settings → Shortcuts.';
         folderGrid.appendChild(empty);
     }
+
     folderModal.style.display = 'flex';
+    placeFolderPanel(children.length, tileEl);
+}
+
+// Position the folder panel and set the origin its open animation grows from.
+function placeFolderPanel(childCount, tileEl) {
+    const panel = folderModal.querySelector('.modal-content');
+    if (!panel) return;
+    const style = settings.folderOpenStyle || 'around';
+    const nearIcon = (style === 'around' || style === 'anchored') && tileEl;
+
+    // Always start from a clean slate so switching styles never leaves
+    // stale inline positioning behind.
+    panel.classList.remove('folder-pop');
+    panel.style.cssText = '';
+    folderModal.classList.toggle('anchored-mode', style !== 'center');
+
+    // Folder name placement, panel translucency and optional backdrop blur.
+    const titleMode = settings.folderTitle || 'top';
+    folderModal.classList.toggle('title-hidden', titleMode === 'hidden');
+    folderModal.classList.toggle('title-bottom', titleMode === 'bottom');
+    folderModal.classList.toggle('folder-blur', !!settings.folderBlur);
+    const alpha = (settings.folderOpacity ?? 100) / 100;
+    panel.style.backgroundColor = rgbaFromHex(settings.panelBgColor || '#242424', alpha); // matches --panel-bg
+
+    if (style === 'custom') {
+        // Fully user-placed: the icon is ignored, the panel opens at the size
+        // and screen position chosen in Settings.
+        const gap = 12;
+        const pw = Math.min(settings.folderCustomWidth ?? 420, window.innerWidth - gap * 2);
+        const ph = Math.min(settings.folderCustomHeight ?? 320, window.innerHeight - gap * 2);
+        // X/Y are a percentage of the leftover space, so the panel can never
+        // be pushed off screen no matter the size.
+        const left = gap + (window.innerWidth - pw - gap * 2) * ((settings.folderCustomX ?? 50) / 100);
+        const top = gap + (window.innerHeight - ph - gap * 2) * ((settings.folderCustomY ?? 50) / 100);
+
+        panel.style.margin = '0';
+        panel.style.width = `${pw}px`;
+        panel.style.height = `${ph}px`;
+        panel.style.maxHeight = 'none'; // the custom height wins over the 70vh cap
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+        panel.style.transformOrigin = 'center';
+    } else if (nearIcon) {
+        sizePanelToContents(panel, childCount);
+
+        // Measure now that the panel is visible and sized; the browser hasn't
+        // painted yet, so moving it here causes no visible jump.
+        const tile = tileEl.getBoundingClientRect();
+        const pw = panel.offsetWidth;
+        const ph = panel.offsetHeight;
+        const gap = 12;
+        const tileCx = tile.left + tile.width / 2;
+        const tileCy = tile.top + tile.height / 2;
+
+        let left = tileCx - pw / 2;
+        let top;
+        if (style === 'around') {
+            // Wrap the panel around the icon itself, so the shortcuts land
+            // right under the cursor instead of off to one side.
+            top = tileCy - ph / 2;
+        } else {
+            // 'anchored': sit just below the icon, flipping above when the
+            // panel wouldn't fit underneath.
+            top = tile.bottom + gap;
+            if (top + ph > window.innerHeight - gap) {
+                const above = tile.top - gap - ph;
+                top = above >= gap ? above : window.innerHeight - gap - ph;
+            }
+        }
+
+        // Keep the whole panel on screen.
+        left = Math.max(gap, Math.min(left, window.innerWidth - gap - pw));
+        top = Math.max(gap, Math.min(top, window.innerHeight - gap - ph));
+
+        panel.style.margin = '0';
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+        // Grow out of the icon itself.
+        panel.style.transformOrigin = `${tileCx - left}px ${tileCy - top}px`;
+    }
+
+    // Replay the open animation (works for both styles). The timeout is a
+    // safety net: if 'animationend' never arrives — e.g. the tab was in the
+    // background when the folder opened, so the animation never advanced —
+    // the panel would otherwise stay frozen at its scaled-down start frame.
+    void panel.offsetWidth;
+    panel.classList.add('folder-pop');
+    const clearPop = () => panel.classList.remove('folder-pop');
+    panel.addEventListener('animationend', clearPop, { once: true });
+    setTimeout(clearPop, 400);
+}
+
+// Width a folder popover needs for its shortcuts, up to 4 across. Measures the
+// folder's own tiles, which are scaled by the "Icon Size in Folders" setting.
+function sizePanelToContents(panel, childCount) {
+    const sample = folderGrid.querySelector('.icon-item') || grid.querySelector('.icon-item');
+    const iconWidth = sample ? sample.offsetWidth : 100;
+    const colGap = parseFloat(getComputedStyle(folderGrid).columnGap) || 20;
+    const cols = Math.max(1, Math.min(4, childCount || 1));
+    const padding = 60; // .modal-body (20px each side) + .folder-grid (10px each side)
+    const width = cols * iconWidth + (cols - 1) * colGap + padding;
+    panel.style.width = `${Math.min(width, window.innerWidth - 24)}px`;
 }
 
 // --- Drag and Drop — live reorder within the current page (by id) ---
@@ -1531,6 +2090,54 @@ function handleDragEnd() {
     grid.querySelectorAll('.icon-item').forEach(item => item.classList.remove('dragging', 'drop-target'));
     saveState();
 }
+
+// =========================================================================
+// Dashboard icon matching
+// =========================================================================
+// The icon list is fetched once per tab and reused by both the per-shortcut
+// button and the "match everything" action.
+let dashboardIconIndex = null;
+
+async function getDashboardIconIndex() {
+    if (dashboardIconIndex) return dashboardIconIndex;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+        const res = await fetch('https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/tree.json', {
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            signal: controller.signal
+        });
+        if (!res.ok) throw new Error(`Icon index returned ${res.status}.`);
+        const declaredSize = Number(res.headers.get('content-length')) || 0;
+        if (declaredSize > 2 * 1024 * 1024) throw new Error('Icon index is unexpectedly large.');
+        const tree = await res.json();
+        // tree.svg looks like ["youtube.svg", "reddit.svg", "reddit-light.svg"]
+        dashboardIconIndex = Array.isArray(tree.svg)
+            ? tree.svg.slice(0, 10000)
+                .filter(name => typeof name === 'string' && /^[a-z0-9][a-z0-9._-]{0,99}\.svg$/i.test(name))
+                .map(name => name.slice(0, -4).toLowerCase())
+            : [];
+        return dashboardIconIndex;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+// Best icon name for a shortcut title, or null when nothing fits.
+function findIconMatch(name, icons) {
+    const target = (name || '').toLowerCase().trim();
+    if (!target) return null;
+    const kebab = target.replace(/\s+/g, '-');
+    if (icons.includes(kebab)) return kebab;
+    if (icons.includes(target)) return target;
+    // Some icons only ship a light/dark variant.
+    return icons.find(icon => icon === `${kebab}-light` || icon === `${kebab}-dark`) || null;
+}
+
+// A pasted URL or an uploaded file is a deliberate choice we shouldn't
+// silently replace.
+const hasCustomIcon = (site) => site.iconSource === 'url' || site.iconSource === 'file';
 
 // --- Right-click tile menu ---
 function openTileMenu(e, item) {
@@ -1632,7 +2239,7 @@ function handleGlobalKeys(e) {
         const assigned = pool.find(s => String(s.hotkey) === e.key);
         if (assigned) {
             e.preventDefault();
-            window.open(assigned.url, settings.openShortcutsNewTab ? '_blank' : '_self');
+            openShortcutUrl(assigned.url, settings.openShortcutsNewTab);
         }
         return;
     }
@@ -1708,38 +2315,77 @@ function renderShortcutsList() {
 
 // --- Bookmarks Logic ---
 
-function loadBookmarkFolders() {
-    if (!chrome.bookmarks) {
-        // Fallback for non-extension environment
-        bookmarkFoldersSort.innerHTML = '<option>Bookmarks API not available</option>';
-        return;
-    }
+let bookmarkFoldersLoaded = false;
 
-    chrome.bookmarks.getTree((tree) => {
-        const folders = [];
-
-        function traverse(node, depth = 0) {
-            if (node.children) {
-                if (depth > 0) { // Skip root
-                    folders.push({ id: node.id, title: node.title, depth });
-                }
-                node.children.forEach(child => traverse(child, depth + 1));
-            }
+function requestBookmarkPermission() {
+    return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.permissions || !chrome.permissions.request) {
+            resolve(false);
+            return;
         }
-
-        tree[0].children.forEach(child => traverse(child, 1)); // Usually starts with "Bookmarks Bar" and "Other Bookmarks"
-
-        bookmarkFoldersSort.innerHTML = '';
-        folders.forEach(folder => {
-            const option = document.createElement('option');
-            option.value = folder.id;
-            option.textContent = '-'.repeat(folder.depth - 1) + ' ' + folder.title;
-            bookmarkFoldersSort.appendChild(option);
+        chrome.permissions.request({ permissions: ['bookmarks'] }, (granted) => {
+            if (chrome.runtime.lastError) {
+                console.warn('Bookmark permission request failed:', chrome.runtime.lastError.message);
+                resolve(false);
+                return;
+            }
+            resolve(granted === true);
         });
     });
 }
 
-function importBookmarks() {
+function loadBookmarkFolders() {
+    return new Promise((resolve) => {
+        if (!chrome.bookmarks) {
+            bookmarkFoldersSort.replaceChildren(new Option('Bookmarks API not available', ''));
+            resolve(false);
+            return;
+        }
+
+        chrome.bookmarks.getTree((tree) => {
+            if (chrome.runtime.lastError || !Array.isArray(tree) || !tree[0]) {
+                console.warn('Could not read bookmark folders:', chrome.runtime.lastError?.message || 'Invalid response');
+                bookmarkFoldersSort.replaceChildren(new Option('Could not load bookmarks', ''));
+                resolve(false);
+                return;
+            }
+            const folders = [];
+
+            function traverse(node, depth = 0) {
+                if (node.children) {
+                    if (depth > 0) folders.push({ id: node.id, title: node.title, depth });
+                    node.children.forEach(child => traverse(child, depth + 1));
+                }
+            }
+
+            (tree[0].children || []).forEach(child => traverse(child, 1));
+            bookmarkFoldersSort.replaceChildren();
+            folders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder.id;
+                option.textContent = '-'.repeat(folder.depth - 1) + ' ' + folder.title;
+                bookmarkFoldersSort.appendChild(option);
+            });
+            bookmarkFoldersSort.disabled = folders.length === 0;
+            bookmarkFoldersLoaded = folders.length > 0;
+            importBookmarksBtn.textContent = bookmarkFoldersLoaded ? 'Import' : 'Load Bookmarks';
+            resolve(bookmarkFoldersLoaded);
+        });
+    });
+}
+
+async function importBookmarks() {
+    if (!bookmarkFoldersLoaded) {
+        const granted = await requestBookmarkPermission();
+        if (!granted) {
+            alert('Bookmark access was not granted. You can still add shortcuts manually.');
+            return;
+        }
+        const loaded = await loadBookmarkFolders();
+        if (!loaded) alert('No bookmark folders were found.');
+        return;
+    }
+
     const folderId = bookmarkFoldersSort.value;
     if (!folderId) return;
 
@@ -1749,25 +2395,32 @@ function importBookmarks() {
     }
 
     chrome.bookmarks.getChildren(folderId, (children) => {
+        if (chrome.runtime.lastError || !Array.isArray(children)) {
+            alert('Could not read that bookmark folder.');
+            return;
+        }
         let importedCount = 0;
+        let skippedCount = 0;
         children.forEach(node => {
-            if (node.url) { // It's a link
+            const url = normalizeShortcutUrl(node.url);
+            if (url) {
                 sites.push({
                     id: Date.now().toString() + Math.random().toString().slice(2, 5),
-                    name: node.title,
-                    url: node.url,
+                    name: (node.title || new URL(url).hostname).slice(0, 120),
+                    url,
                     color: '#ffffff',
                     iconSource: 'favicon',
-                    iconValue: ''
+                    iconValue: '',
+                    page: currentPage
                 });
                 importedCount++;
-            }
+            } else if (node.url) skippedCount++;
         });
 
         if (importedCount > 0) {
             saveAndRender();
             renderShortcutsList();
-            alert(`Imported ${importedCount} bookmarks!`);
+            alert(`Imported ${importedCount} bookmark(s).` + (skippedCount ? ` Skipped ${skippedCount} non-web link(s).` : ''));
         } else {
             alert("No bookmarks found in this folder.");
         }
@@ -1799,6 +2452,7 @@ function setupEventListeners() {
     let startX, startY, initialLeft, initialTop;
 
     modalHeader.onmousedown = (e) => {
+        if (e.target.closest('button')) return;
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
@@ -1851,7 +2505,8 @@ function setupEventListeners() {
 
         slider.oninput = (e) => {
             const val = isInt ? parseInt(e.target.value) : e.target.value;
-            settings[settingKey] = val;
+            if (isInt && !Number.isFinite(val)) return;
+            setLayoutValue(settingKey, val);
             num.value = val;
             applySettings(); // Immediate visual update (CSS vars only, cheap)
             debouncedSaveAndApply(); // Debounced localStorage write
@@ -1859,9 +2514,10 @@ function setupEventListeners() {
 
         num.oninput = (e) => {
             let val = isInt ? parseInt(e.target.value) : e.target.value;
+            if (isInt && !Number.isFinite(val)) return;
             if (slider.min && val < parseInt(slider.min)) val = parseInt(slider.min);
             if (slider.max && val > parseInt(slider.max)) val = parseInt(slider.max);
-            settings[settingKey] = val;
+            setLayoutValue(settingKey, val);
             slider.value = val;
             applySettings();
             debouncedSaveAndApply();
@@ -1871,10 +2527,17 @@ function setupEventListeners() {
         const reset = document.getElementById(sliderId + 'Reset');
         if (reset) {
             reset.onclick = () => {
-                const def = defaultSettings[settingKey];
-                settings[settingKey] = def;
-                slider.value = def;
-                num.value = def;
+                // When editing one page, 'reset' drops its override so the page
+                // follows the global value again; otherwise restore the default.
+                if (layoutScope !== 'global' && PAGE_LAYOUT_KEYS.includes(settingKey)
+                    && settings.pageOverrides && settings.pageOverrides[layoutScope]) {
+                    delete settings.pageOverrides[layoutScope][settingKey];
+                } else {
+                    settings[settingKey] = defaultSettings[settingKey];
+                }
+                const val = layoutValue(settingKey);
+                slider.value = val;
+                num.value = val;
                 applySettings();
                 saveState();
             };
@@ -1919,7 +2582,13 @@ function setupEventListeners() {
         // typing the URL, not on every keystroke.
         fontUrlInput.onchange = async (e) => {
             if (settings.fontSource !== 'url') return;
-            const next = e.target.value.trim();
+            const entered = e.target.value.trim();
+            const next = entered ? normalizeGoogleFontStylesheetUrl(entered) : '';
+            if (entered && !next) {
+                alert('Enter a Google Fonts CSS URL beginning with https://fonts.googleapis.com/css or /css2.');
+                e.target.value = settings.fontValue || '';
+                return;
+            }
             // Drop the previous font's cached copy if the URL actually changed.
             if (settings.fontValue && settings.fontValue !== next) {
                 await deleteImageFromDB(GFONT_PREFIX + settings.fontValue).catch(console.error);
@@ -1934,7 +2603,7 @@ function setupEventListeners() {
             const file = e.target.files[0];
             if (!file || settings.fontSource !== 'upload') return;
             try {
-                const dataUrl = await readFileAsDataURL(file);
+                const dataUrl = await readFileAsDataURL(file, 'font', 5 * 1024 * 1024);
                 await saveImageToDB('idb:font', dataUrl); // also fills imageCache
                 settings.fontValue = 'idb:font';
                 saveState();
@@ -1953,6 +2622,75 @@ function setupEventListeners() {
 
     // Theme: accent, gradient, custom CSS, presets
     if (accentColorInput) accentColorInput.oninput = (e) => { settings.accentColor = e.target.value; applySettings(); debouncedSaveAndApply(); };
+    // Choosing a color overrides the default; the reset button hands control
+    // back (and for the selected tab, back to the accent color).
+    const setupPanelColor = (input, key) => {
+        if (input) {
+            input.oninput = (e) => { settings[key] = e.target.value; applySettings(); debouncedSaveAndApply(); };
+        }
+        const reset = document.getElementById(key + 'Reset');
+        if (reset) {
+            reset.onclick = () => { settings[key] = ''; saveState(); applySettings(); };
+        }
+    };
+    setupPanelColor(panelBgColorInput, 'panelBgColor');
+    setupPanelColor(panelAltColorInput, 'panelAltColor');
+    setupPanelColor(panelTextColorInput, 'panelTextColor');
+    setupPanelColor(panelTabColorInput, 'panelTabColor');
+
+    // Settings icon
+    setupSync('settingsIconOpacity', 'settingsIconOpacityValInput', 'settingsIconOpacity');
+    setupSync('settingsIconSize', 'settingsIconSizeValInput', 'settingsIconSize');
+    if (settingsIconPositionInput) settingsIconPositionInput.onchange = (e) => { settings.settingsIconPosition = e.target.value; saveState(); applySettingsIcon(); };
+    if (settingsIconSourceInput) {
+        settingsIconSourceInput.onchange = (e) => {
+            settings.settingsIconSource = e.target.value;
+            settings.settingsIconValue = ''; // start clean when switching source
+            saveState();
+            applySettingsIcon();
+        };
+    }
+    if (settingsIconUrlInput) {
+        settingsIconUrlInput.oninput = (e) => {
+            if (settings.settingsIconSource !== 'url') return;
+            settings.settingsIconValue = normalizeHttpsResourceUrl(e.target.value) || '';
+            applySettingsIcon();
+            debouncedSaveAndApply();
+        };
+    }
+    if (settingsIconFileInput) {
+        settingsIconFileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file || settings.settingsIconSource !== 'file') return;
+            try {
+                const dataUrl = await readFileAsDataURL(file, 'image', 10 * 1024 * 1024);
+                settings.settingsIconValue = await resizeImage(dataUrl, 128);
+                saveState();
+                applySettingsIcon();
+            } catch (err) {
+                console.error('Error reading settings icon file', err);
+                alert('Failed to load that image.');
+            }
+        };
+    }
+    if (settingsIconGlyphInput) settingsIconGlyphInput.oninput = (e) => { settings.settingsIconGlyph = e.target.value || '\u2699\uFE0F'; applySettingsIcon(); debouncedSaveAndApply(); };
+    if (settingsIconHiddenInput) {
+        settingsIconHiddenInput.onchange = (e) => {
+            if (e.target.checked) {
+                const where = (settings.settingsIconPosition || 'top-right').replace('-', ' ');
+                const warning = 'WARNING\n\n'
+                    + 'The settings icon will become completely invisible.\n\n'
+                    + `It still works: click the same spot in the ${where} corner of the page.\n\n`
+                    + 'If you lose it, click the New Tab icon in your browser toolbar and choose '
+                    + '"Open Settings" to get back here.\n\n'
+                    + 'Hide the icon?';
+                if (!confirm(warning)) { e.target.checked = false; return; }
+            }
+            settings.settingsIconHidden = e.target.checked;
+            saveState();
+            applySettingsIcon();
+        };
+    }
     if (gradColor1Input) gradColor1Input.oninput = (e) => { settings.gradientColor1 = e.target.value; applySettings(); debouncedSaveAndApply(); };
     if (gradColor2Input) gradColor2Input.oninput = (e) => { settings.gradientColor2 = e.target.value; applySettings(); debouncedSaveAndApply(); };
     if (gradAngleInput) gradAngleInput.onchange = (e) => { settings.gradientAngle = e.target.value; saveState(); applySettings(); };
@@ -1968,6 +2706,55 @@ function setupEventListeners() {
     if (enableNumberKeysInput) enableNumberKeysInput.onchange = (e) => { settings.enableNumberKeys = e.target.checked; saveState(); };
     if (hotkeyScopeInput) hotkeyScopeInput.onchange = (e) => { settings.hotkeyScope = e.target.value; saveState(); };
     if (showHotkeyBadgeInput) showHotkeyBadgeInput.onchange = (e) => { settings.showHotkeyBadge = e.target.checked; saveState(); renderGrid(); };
+    if (folderOpenStyleInput) {
+        folderOpenStyleInput.onchange = (e) => {
+            settings.folderOpenStyle = e.target.value;
+            saveState();
+            updateFolderInputsDisplay();
+        };
+    }
+    setupSync('folderIconScale', 'folderIconScaleValInput', 'folderIconScale');
+    setupSync('folderPadding', 'folderPaddingValInput', 'folderPadding');
+    setupSync('folderGap', 'folderGapValInput', 'folderGap');
+    setupSync('folderOpacity', 'folderOpacityValInput', 'folderOpacity');
+    setupSync('pageArrowSize', 'pageArrowSizeValInput', 'pageArrowSize');
+    setupSync('pageArrowOpacity', 'pageArrowOpacityValInput', 'pageArrowOpacity');
+    setupSync('pageArrowGap', 'pageArrowGapValInput', 'pageArrowGap');
+    if (folderTitleInput) folderTitleInput.onchange = (e) => { settings.folderTitle = e.target.value; saveState(); };
+    if (folderBlurInput) folderBlurInput.onchange = (e) => { settings.folderBlur = e.target.checked; saveState(); };
+
+    // Page navigation
+    if (pageArrowsInput) pageArrowsInput.onchange = (e) => { settings.pageArrows = e.target.value; saveState(); applySettings(); renderPageArrows(); };
+    if (pageArrowStyleInput) pageArrowStyleInput.onchange = (e) => { settings.pageArrowStyle = e.target.value; saveState(); renderPageArrows(); };
+    if (pageArrowPositionInput) pageArrowPositionInput.onchange = (e) => { settings.pageArrowPosition = e.target.value; saveState(); applySettings(); renderPageArrows(); };
+    if (pageArrowAnchorInput) pageArrowAnchorInput.onchange = (e) => { settings.pageArrowAnchor = e.target.value; saveState(); renderPageArrows(); };
+    if (pageArrowColorInput) pageArrowColorInput.oninput = (e) => { settings.pageArrowColor = e.target.value; renderPageArrows(); debouncedSaveAndApply(); };
+    if (showPageDotsInput) showPageDotsInput.onchange = (e) => { settings.showPageDots = e.target.checked; saveState(); renderPageDots(); };
+    if (pagePrevBtn) pagePrevBtn.onclick = () => stepPage(-1);
+    if (pageNextBtn) pageNextBtn.onclick = () => stepPage(1);
+
+    // Which page the Layout tab edits (switching also jumps to that page,
+    // so any change you make is visible straight away).
+    if (layoutScopeInput) {
+        layoutScopeInput.onchange = (e) => {
+            layoutScope = e.target.value === 'global' ? 'global' : parseInt(e.target.value, 10);
+            if (layoutScope !== 'global') goToPage(layoutScope);
+            applySettings();
+        };
+    }
+    if (layoutScopeClearBtn) {
+        layoutScopeClearBtn.onclick = () => {
+            if (layoutScope === 'global') return;
+            clearPageOverrides(layoutScope);
+            saveState();
+            applySettings();
+            renderGrid();
+        };
+    }
+    setupSync('folderCustomX', 'folderCustomXValInput', 'folderCustomX');
+    setupSync('folderCustomY', 'folderCustomYValInput', 'folderCustomY');
+    setupSync('folderCustomWidth', 'folderCustomWidthValInput', 'folderCustomWidth');
+    setupSync('folderCustomHeight', 'folderCustomHeightValInput', 'folderCustomHeight');
     if (enableContextMenuInput) enableContextMenuInput.onchange = (e) => { settings.enableContextMenu = e.target.checked; saveState(); };
     if (confirmOpenAllInput) confirmOpenAllInput.onchange = (e) => { settings.confirmOpenAll = e.target.checked; saveState(); };
 
@@ -2019,7 +2806,7 @@ function setupEventListeners() {
             }
             // Skip the confirmation entirely when the user has turned it off.
             if (settings.confirmOpenAll !== false && toOpen.length > 5 && !confirm(`Open ${toOpen.length} sites?`)) return;
-            toOpen.forEach(site => window.open(site.url, '_blank'));
+            toOpen.forEach(site => openShortcutUrl(site.url, true));
         };
     }
 
@@ -2045,7 +2832,7 @@ function setupEventListeners() {
     if (searchIconUrlInput) {
         searchIconUrlInput.oninput = (e) => {
             if (settings.searchIconStyle === 'url') {
-                settings.searchIconValue = e.target.value;
+                settings.searchIconValue = normalizeHttpsResourceUrl(e.target.value) || '';
                 saveState();
                 applySettings();
             }
@@ -2055,7 +2842,7 @@ function setupEventListeners() {
         searchIconFileInput.onchange = async (e) => {
             if (e.target.files[0] && settings.searchIconStyle === 'file') {
                 try {
-                    const dataUrl = await readFileAsDataURL(e.target.files[0]);
+                    const dataUrl = await readFileAsDataURL(e.target.files[0], 'image', 10 * 1024 * 1024);
                     settings.searchIconValue = await resizeImage(dataUrl, 256);
                     saveState();
                     applySettings();
@@ -2076,7 +2863,7 @@ function setupEventListeners() {
 
     // Search Submit (Chrome Search API)
     if (searchForm) {
-        searchForm.onsubmit = (e) => {
+        searchForm.onsubmit = async (e) => {
             e.preventDefault();
             const query = searchInput.value.trim();
             if (!query) return;
@@ -2085,21 +2872,11 @@ function setupEventListeners() {
             const disposition = settings.openSearchNewTab ? 'NEW_TAB' : 'CURRENT_TAB';
 
             try {
-                if (chrome.search && chrome.search.query) {
-                    chrome.search.query({
-                        text: query,
-                        disposition: disposition
-                    });
-                } else {
-                    // Fallback for non-extension environment or error
-                    console.warn("Chrome Search API not available. Redirecting to Google as fallback.");
-                    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-                    if (settings.openSearchNewTab) window.open(url, '_blank');
-                    else window.location.href = url;
-                }
+                if (!chrome.search || !chrome.search.query) throw new Error('Chrome Search API is unavailable.');
+                await chrome.search.query({ text: query, disposition });
             } catch (err) {
                 console.error("Search failed:", err);
-                alert("Search failed. Please ensure the extension has 'search' permissions.");
+                alert('Search failed. Check that the extension still has search permission.');
             }
         };
     }
@@ -2115,13 +2892,13 @@ function setupEventListeners() {
     };
 
     bgColorInput.oninput = (e) => { settings.bgValue = e.target.value; applySettings(); debouncedSaveAndApply(); };
-    bgUrlInput.oninput = (e) => { settings.bgValue = e.target.value; saveState(); applySettings(); };
+    bgUrlInput.oninput = (e) => { settings.bgValue = normalizeHttpsResourceUrl(e.target.value) || ''; saveState(); applySettings(); };
     setupSync('bgBlur', 'bgBlurValInput', 'bgBlur');
 
     bgFileInput.onchange = async (e) => {
         if (e.target.files[0]) {
             try {
-                const dataUrl = await readFileAsDataURL(e.target.files[0]);
+                const dataUrl = await readFileAsDataURL(e.target.files[0], 'image', 15 * 1024 * 1024);
                 settings.bgValue = await resizeImage(dataUrl, 3840, 0.95);
                 saveState();
                 applySettings();
@@ -2144,7 +2921,14 @@ function setupEventListeners() {
             for (const key of Object.keys(dbImages)) {
                 if (!key.startsWith(FAV_PREFIX)) images[key] = dbImages[key];
             }
-            const dataStr = JSON.stringify({ sites, settings, images });
+            const dataStr = JSON.stringify({
+                formatVersion: 1,
+                extensionVersion: chrome.runtime.getManifest().version,
+                exportedAt: new Date().toISOString(),
+                sites,
+                settings,
+                images
+            });
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -2163,29 +2947,33 @@ function setupEventListeners() {
         importDataInput.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            if (file.size > 20 * 1024 * 1024) {
+                alert('That backup is too large. The maximum supported size is 20 MB.');
+                e.target.value = '';
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
                     const data = JSON.parse(event.target.result);
-                    if (data.sites && data.settings) {
-                        sites = data.sites;
-                        settings = data.settings;
-                        if (data.images) {
-                            for (const key of Object.keys(data.images)) {
-                                await saveImageToDB(key, data.images[key]);
-                            }
-                        }
-                        saveAndRender();
-                        alert("Configuration imported successfully!");
-                    } else {
-                        alert("Invalid backup file format.");
+                    const imported = sanitizeBackup(data, defaultSettings);
+                    for (const key of Object.keys(imported.images)) {
+                        await saveImageToDB(key, imported.images[key]);
                     }
+                    sites = imported.sites;
+                    settings = imported.settings;
+                    saveAndRender();
+                    await applyFont();
+                    renderShortcutsList();
+                    renderThemeUI();
+                    alert('Configuration imported successfully.');
                 } catch (err) {
-                    alert("Error parsing backup file.");
+                    alert(`Invalid backup file: ${err.message}`);
                     console.error(err);
                 }
             };
+            reader.onerror = () => alert('Could not read that backup file.');
             reader.readAsText(file);
             e.target.value = ''; // Reset input
         };
@@ -2241,7 +3029,7 @@ function setupEventListeners() {
     if (tabFaviconUrlInput) {
         tabFaviconUrlInput.oninput = (e) => {
             if (settings.tabFaviconSource === 'url') {
-                settings.tabFaviconValue = e.target.value;
+                settings.tabFaviconValue = normalizeHttpsResourceUrl(e.target.value) || '';
                 saveState();
                 applySettings();
             }
@@ -2252,7 +3040,7 @@ function setupEventListeners() {
         tabFaviconFileInput.onchange = async (e) => {
             if (e.target.files[0] && settings.tabFaviconSource === 'file') {
                 try {
-                    const dataUrl = await readFileAsDataURL(e.target.files[0]);
+                    const dataUrl = await readFileAsDataURL(e.target.files[0], 'image', 10 * 1024 * 1024);
                     settings.tabFaviconValue = await resizeImage(dataUrl, 256);
                     saveState();
                     applySettings();
@@ -2272,57 +3060,88 @@ function setupEventListeners() {
     if (autoMatchIconsBtn) {
         autoMatchIconsBtn.onclick = async () => {
             const btn = autoMatchIconsBtn;
-            btn.disabled = true;
             const originalText = btn.textContent;
+            btn.disabled = true;
             btn.textContent = 'Matching...';
 
             try {
-                const res = await fetch('https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/tree.json');
-                const tree = await res.json();
-                
-                // tree.svg is an array of file names: ["youtube.svg", "reddit.svg", "reddit-light.svg"]
-                const availableIcons = (tree.svg || []).map(name => name.replace('.svg', ''));
+                const icons = await getDashboardIconIndex();
+                let applied = 0;
+                const conflicts = []; // shortcuts that already have a custom icon
 
-                let matchesCount = 0;
-
-                sites.forEach(site => {
-                    // Only upgrade simple favicons or existing dashboard icons to see if there's a better match
-                    if (site.iconSource !== 'favicon' && site.iconSource !== 'dashboardicons') return;
-
-                    const searchTarget = site.name.toLowerCase().trim();
-                    let bestMatch = null;
-                    const kebabName = searchTarget.replace(/\s+/g, '-');
-                    
-                    if (availableIcons.includes(kebabName)) {
-                        bestMatch = kebabName;
-                    } else if (availableIcons.includes(searchTarget)) {
-                        bestMatch = searchTarget;
-                    } else {
-                        // Simple fallback: maybe there's a -light variant if base doesn't exist
-                        const fallback = availableIcons.find(icon => icon === `${kebabName}-light` || icon === `${kebabName}-dark`);
-                        if (fallback) bestMatch = fallback;
-                    }
-
-                    if (bestMatch && (site.iconSource !== 'dashboardicons' || site.iconValue !== bestMatch)) {
+                getAllShortcuts().forEach(site => {
+                    const match = findIconMatch(site.name, icons);
+                    if (!match) return;
+                    if (hasCustomIcon(site)) { conflicts.push({ site, match }); return; }
+                    if (site.iconSource !== 'dashboardicons' || site.iconValue !== match) {
                         site.iconSource = 'dashboardicons';
-                        site.iconValue = bestMatch;
-                        matchesCount++;
+                        site.iconValue = match;
+                        applied++;
                     }
                 });
 
-                if (matchesCount > 0) {
+                // Never overwrite a hand-picked icon without asking first.
+                let replaced = 0;
+                if (conflicts.length > 0) {
+                    const names = conflicts.map(c => `\u2022 ${c.site.name}`).join('\n');
+                    const ask = `These shortcuts already have a custom icon:\n\n${names}\n\n`
+                        + `Replace them with matching icons too?`;
+                    if (confirm(ask)) {
+                        for (const { site, match } of conflicts) {
+                            if (site.iconValue && String(site.iconValue).startsWith('idb:')) {
+                                await deleteImageFromDB(site.iconValue).catch(() => {});
+                            }
+                            site.iconSource = 'dashboardicons';
+                            site.iconValue = match;
+                            replaced++;
+                        }
+                    }
+                }
+
+                const total = applied + replaced;
+                if (total > 0) {
                     saveAndRender();
                     renderShortcutsList();
-                    alert(`Successfully auto-matched ${matchesCount} icons!`);
+                    alert(`Matched ${total} icon(s).` + (replaced ? ` ${replaced} custom icon(s) replaced.` : ''));
+                } else if (conflicts.length > 0) {
+                    alert('No changes made.');
                 } else {
-                    alert("No new icon matches found.");
+                    alert('No new icon matches found.');
                 }
             } catch (err) {
-                console.error("Auto-match failed:", err);
-                alert("Failed to fetch icon database. Please try again later.");
+                console.error('Auto-match failed:', err);
+                alert('Could not reach the icon database. Please try again later.');
             } finally {
                 btn.disabled = false;
                 btn.textContent = originalText;
+            }
+        };
+    }
+
+    // Match just the shortcut currently open in the Add/Edit dialog.
+    if (matchThisIconBtn) {
+        matchThisIconBtn.onclick = async () => {
+            const name = siteNameInput.value.trim();
+            if (!name) { alert('Give the shortcut a name first.'); return; }
+            const originalText = matchThisIconBtn.textContent;
+            matchThisIconBtn.disabled = true;
+            matchThisIconBtn.textContent = 'Matching...';
+            try {
+                const icons = await getDashboardIconIndex();
+                const match = findIconMatch(name, icons);
+                if (!match) {
+                    alert(`No icon found for \"${name}\".`);
+                    return;
+                }
+                iconSourceInput.value = 'dashboardicons';
+                iconSourceInput.onchange();
+                iconDashboardInput.value = match;
+            } catch (err) {
+                console.error('Auto-match failed:', err);
+                alert('Could not reach the icon database. Please try again later.');
+            } finally {
+                matchThisIconBtn.disabled = false;
+                matchThisIconBtn.textContent = originalText;
             }
         };
     }
@@ -2343,25 +3162,39 @@ function setupEventListeners() {
 
         let iconValue = '';
         if (iconSourceInput.value === 'url') {
-            iconValue = iconUrlInput.value;
+            iconValue = normalizeHttpsResourceUrl(iconUrlInput.value);
+            if (!iconValue) {
+                alert('Custom image URLs must use HTTPS.');
+                return;
+            }
         } else if (iconSourceInput.value === 'dashboardicons') {
             iconValue = iconDashboardInput.value.trim().toLowerCase();
+            if (!/^[a-z0-9][a-z0-9._-]{0,99}$/i.test(iconValue)) {
+                alert('Enter a valid DashboardIcons name.');
+                return;
+            }
         } else if (iconSourceInput.value === 'file' && iconFileInput.files[0]) {
-            const dataUrl = await readFileAsDataURL(iconFileInput.files[0]);
-            iconValue = await resizeImage(dataUrl, 256);
+            try {
+                const dataUrl = await readFileAsDataURL(iconFileInput.files[0], 'image', 10 * 1024 * 1024);
+                iconValue = await resizeImage(dataUrl, 256);
+            } catch (error) {
+                alert(error.message);
+                return;
+            }
         } else if (existing && existing.iconSource === iconSourceInput.value) {
             iconValue = existing.iconValue; // keep the current icon when it didn't change
         }
 
-        let url = siteUrlInput.value.trim();
-        if (!/^https?:\/\//i.test(url)) {
-            url = 'https://' + url;
+        const url = normalizeShortcutUrl(siteUrlInput.value, true);
+        if (!url) {
+            alert('Enter a valid HTTP or HTTPS website address.');
+            return;
         }
 
         const targetFolder = siteFolderInput ? siteFolderInput.value : '';
         const newSite = {
             id: id,
-            name: siteNameInput.value,
+            name: siteNameInput.value.trim().slice(0, 120),
             url: url,
             color: siteColorInput.value,
             iconSource: iconSourceInput.value,
@@ -2544,11 +3377,39 @@ function openShortcutModal(site = null) {
     updateSitePageVisibility();
 }
 
-function readFileAsDataURL(file) {
+function readFileAsDataURL(file, kind = 'image', maxBytes = 10 * 1024 * 1024) {
     return new Promise((resolve, reject) => {
+        if (!file || file.size > maxBytes) {
+            reject(new Error(`File must be smaller than ${Math.round(maxBytes / 1024 / 1024)} MB.`));
+            return;
+        }
+        const extension = (file.name.split('.').pop() || '').toLowerCase();
+        const allowedByName = kind === 'font'
+            ? ['woff2', 'woff', 'ttf', 'otf'].includes(extension)
+            : ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'svg'].includes(extension);
+        const allowedByType = kind === 'font'
+            ? /^(font\/|application\/(?:font|x-font|octet-stream))/i.test(file.type)
+            : /^image\//i.test(file.type);
+        if (!allowedByName && !allowedByType) {
+            reject(new Error(kind === 'font' ? 'Choose a valid WOFF, WOFF2, TTF, or OTF font.' : 'Choose a valid image file.'));
+            return;
+        }
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
+        reader.onload = () => {
+            let dataUrl = reader.result;
+            if (/^data:;base64,/i.test(dataUrl) && allowedByName) {
+                const fallbackMime = kind === 'font'
+                    ? `font/${extension}`
+                    : ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml', ico: 'image/x-icon' }[extension] || `image/${extension}`);
+                dataUrl = dataUrl.replace(/^data:;base64,/i, `data:${fallbackMime};base64,`);
+            }
+            if (!isSafeDataUrl(dataUrl, kind)) {
+                reject(new Error(`The selected ${kind} file has an unsupported format.`));
+                return;
+            }
+            resolve(dataUrl);
+        };
+        reader.onerror = () => reject(reader.error || new Error('Could not read the selected file.'));
         reader.readAsDataURL(file);
     });
 }

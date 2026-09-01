@@ -1,63 +1,130 @@
 # New Tab
 
-A fast, private new-tab page for Chrome. Open a tab and your shortcuts are
-right there in a clean grid, arranged exactly the way you like them.
+A clean, fast, and deeply customizable new-tab page for Chrome.
 
-I built this because every new-tab page I tried was either cluttered with
-things I don't use or too locked down to make my own. This one opens instantly,
-shows the sites I actually visit, and gets out of the way.
+Current release: **1.2.1**. Requires Chrome 104 or newer.
+
+New Tab turns the blank browser tab into a personal launchpad: your favorite
+sites, your layout, your background, your icons, and your search bar, all in one
+place. It is built to feel simple when you open it, but flexible when you want
+to make it yours.
 
 ![New Tab](Screenshot0.png)
 
-## What it does
+## Why Use It
 
-- **Your layout** — adjust icon size, spacing, and column count, and nudge the
-  whole grid up or down so it sits nicely over your wallpaper.
-- **Folders & pages** — group shortcuts into folders (drag a tile onto a folder
-  to file it away) and spread them across multiple pages you flip through with
-  the dots or arrow keys.
-- **The right icon, every time** — favicons are fetched automatically, or pick
-  from 1,800+ crisp icons in the open-source [dashboard icons](https://dashboardicons.com/)
-  set, paste an image URL, or upload your own.
-- **Sharp and instant** — icons are cached locally, so they load immediately
-  and stay crisp on big 4K screens.
-- **Themes** — one-click presets, plus full control over the accent color,
-  background gradient, labels, and even your own custom CSS.
-- **Your background** — a built-in gradient, a solid color, an image from the
-  web, or one from your computer, with optional blur.
-- **Your font** — keep the bundled one, choose a system font, upload a font
-  file, or point it at a Google Font (downloaded once, then it works offline).
-- **Keyboard launch** — assign the digits 1–9 to your favorite shortcuts and
-  open them with a single keypress.
-- **Native search** — an optional search bar, fully resizable and reshapable,
-  that uses whatever search engine your browser already uses. No middleman.
-- **Quality-of-life** — import a folder of bookmarks at once, right-click a tile
-  for quick actions, launch your whole routine with "Open All", and back
-  everything up to a file you can restore on another computer.
+Most new-tab pages are either too busy or too limited. This one is meant to stay
+out of your way. Open a tab, see the shortcuts you care about, launch what you
+need, and keep moving.
+
+It works especially well if you like having a tidy home base for work, school,
+personal projects, or everyday browsing without news feeds, accounts, ads, or
+tracking.
+
+## Main Features
+
+- **Fast shortcut grid** - Keep your most-used sites one click away in a clean,
+  responsive grid.
+- **Full layout control** - Adjust icon size, row spacing, column spacing,
+  column count, and vertical position so the page fits your screen and
+  wallpaper.
+- **Folders and pages** - Group shortcuts into folders, spread them across
+  multiple pages, and move between pages with on-screen arrows, page dots, or
+  the keyboard. Each page can even have its own icon size and grid layout.
+- **Folder styling** - Choose where folders open (around the icon, beside it,
+  centered, or a fixed spot you pick), and set their icon size, padding,
+  spacing, name position, and background opacity.
+- **Drag and drop organization** - Reorder shortcuts, move items into folders,
+  and keep your setup exactly how you like it.
+- **Native browser search** - Use the optional search bar with your browser's
+  current default search engine. The extension does not replace or control your
+  search provider. Size and shape it however you like, from a wide pill to a
+  compact square.
+- **Beautiful icons** - Use automatic favicons, upload your own image, paste an
+  image URL, or choose from the open-source
+  [Dashboard Icons](https://dashboardicons.com/) collection.
+- **Auto-match icons** - Let the extension scan your shortcuts and match them to
+  crisp Dashboard Icons where available.
+- **Custom backgrounds** - Choose a radial gradient, a solid color, an image
+  URL, or an uploaded image, with optional blur.
+- **Themes and styling** - Pick a preset, set your accent color, adjust labels,
+  change fonts, or add your own custom CSS. The accent color drives the whole
+  interface, and you can override individual settings-panel colors when you
+  want something specific.
+- **Your settings button** - Move the gear to any corner, swap it for another
+  emoji or your own image, change its size and opacity, or hide it completely.
+  If you hide it, the extension's toolbar button will always reopen settings.
+- **Keyboard shortcuts** - Assign number keys 1-9 to launch favorite shortcuts
+  even faster.
+- **Open All** - Launch a whole set of sites at once, with the option to exclude
+  specific shortcuts.
+- **Bookmark import** - Import an existing Chrome bookmarks folder directly into
+  your shortcut grid.
+- **Backup and restore** - Export your full setup to a file and restore it later
+  or move it to another computer.
+
+## Personalization
+
+New Tab is designed for people who care about how their browser feels. You can
+keep it minimal with a few icons on a quiet background, or build a more detailed
+dashboard with folders, pages, custom colors, and keyboard launch keys.
+
+The settings panel is draggable, so you can move it out of the way while you are
+adjusting the page. Most changes appear immediately, making it easy to tune the
+layout without guessing.
 
 ## Privacy
 
-No tracking, no analytics, nothing phoned home. Your shortcuts and settings
-live in your browser's local storage and nowhere else. The only time the
-extension reaches the internet is to fetch a site's icon (which it then caches
-locally so it won't ask again) or, if you choose the Google Fonts option, to
-load that font. Nothing about you is ever collected or sent anywhere.
+New Tab has no account, analytics, advertising, tracking, or developer-operated
+server. The developer does not receive or store your personal data.
+
+Your shortcuts, settings, uploaded images, themes, and bookmark imports are
+stored in your Chrome profile. Bookmark access is optional and begins only when
+you click **Load Bookmarks**.
+
+The extension makes limited HTTPS requests for user-facing features. Automatic
+favicon retrieval sends only a shortcut's origin (never its path or query) to
+Google's favicon service. Dashboard Icons, Google Fonts, and user-specified
+image hosts are contacted only when those features are used. Search text is
+sent by Chrome directly to the user's existing default search provider.
+
+See the full [Privacy Policy](PRIVACY.md) for data handling, permissions, third
+parties, and deletion details.
 
 ## Install
 
-**From the Chrome Web Store:** search for "New Tab" or use the listing link.
+**From the Chrome Web Store:** [install New Tab](https://chromewebstore.google.com/detail/new-tab/ojemohmpkieofnihdnacicpeifnidjgi).
 
 **From source:**
+
 1. Download or clone this repository.
-2. Open `chrome://extensions` and turn on **Developer mode**.
-3. Click **Load unpacked** and select the project folder.
+2. Open `chrome://extensions` in Chrome.
+3. Turn on **Developer mode**.
+4. Click **Load unpacked**.
+5. Select this project folder.
 
-## Built with
+## Built With
 
-Plain HTML, CSS, and JavaScript — no build step, no frameworks. The
-[Inter](https://rsms.me/inter/) font (SIL Open Font License) is bundled so the
-page never depends on a font server. Icons courtesy of
-[dashboard icons](https://dashboardicons.com/) (Apache-2.0).
+New Tab is built with plain HTML, CSS, and JavaScript. No framework, no build
+step, and no account system.
+
+The bundled Inter font is included under the SIL Open Font License. Dashboard
+Icons are provided by the open-source Dashboard Icons project under Apache-2.0.
+
+## Release Notes
+
+See [CHANGELOG.md](CHANGELOG.md).
+
+## Development Checks
+
+There is no build step or dependency installation. Before packaging a release,
+run:
+
+```powershell
+node --check validation.js
+node --check script.js
+node --test tests\validation.test.cjs
+```
 
 ## License
 

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>New Tab</title>
+    <style>
+        /* Kept deliberately tiny and self-contained: this popup exists so the
+           settings are always reachable, even if the on-page gear is hidden. */
+        body {
+            margin: 0;
+            padding: 16px;
+            width: 220px;
+            background: #242424;
+            color: #eee;
+            font-family: system-ui, 'Segoe UI', sans-serif;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 4px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        p {
+            margin: 0 0 14px;
+            font-size: 12px;
+            color: #999;
+            line-height: 1.4;
+        }
+
+        a {
+            display: block;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #3f51b5;
+            color: #fff;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        a:hover {
+            filter: brightness(1.15);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>New Tab</h1>
+    <p>Opens a new tab with the settings panel already showing.</p>
+    <!-- A plain link, so the popup needs no script of its own. -->
+    <a href="newtab.html#settings" target="_blank" rel="noopener noreferrer">Open Settings</a>
+</body>
+
+</html>
