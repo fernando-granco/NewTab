@@ -116,6 +116,13 @@ Icons are provided by the open-source Dashboard Icons project under Apache-2.0.
 
 See [CHANGELOG.md](CHANGELOG.md).
 
+## Chrome Web Store — 1.2.2 Update
+
+This release makes folders easier to organize and personalize: their shortcut
+grid stays stable, Settings shows a live preview, and any folder can override
+the default placement, size, spacing, title, opacity, and blur. No new
+permissions are requested in version 1.2.2.
+
 ## Development Checks
 
 There is no build step or dependency installation. Before packaging a release,

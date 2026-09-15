@@ -1,6 +1,6 @@
 # Privacy Policy for New Tab
 
-Effective date: September 1, 2026
+Effective date: September 15, 2026
 
 Applies to: New Tab version 1.2.2 and later
 
