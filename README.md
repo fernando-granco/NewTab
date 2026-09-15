@@ -123,17 +123,6 @@ grid stays stable, Settings shows a live preview, and any folder can override
 the default placement, size, spacing, title, opacity, and blur. No new
 permissions are requested in version 1.2.2.
 
-## Development Checks
-
-There is no build step or dependency installation. Before packaging a release,
-run:
-
-```powershell
-node --check validation.js
-node --check script.js
-node --test tests\validation.test.cjs
-```
-
 ## License
 
 See [LICENSE](LICENSE).
