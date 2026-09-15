@@ -286,6 +286,28 @@
                     </details>
                 </div>
                 <div id="folders" class="tab-content">
+                    <div class="setting-item folder-settings-scope">
+                        <label for="folderSettingsScope">Customize</label>
+                        <select id="folderSettingsScope">
+                            <option value="">All folders (default)</option>
+                        </select>
+                        <p class="hint">Choose a folder to override these settings just for it.</p>
+                    </div>
+                    <section class="folder-live-preview" aria-labelledby="folderPreviewTitle">
+                        <div class="folder-preview-heading">
+                            <strong id="folderPreviewTitle">Live folder preview</strong>
+                            <span>Updates as you adjust these settings</span>
+                        </div>
+                        <div id="folderPreviewPanel" class="folder-preview-panel title-top">
+                            <div id="folderPreviewTitleBar" class="folder-preview-title">Example Folder</div>
+                            <div id="folderPreviewGrid" class="folder-preview-grid" aria-hidden="true">
+                                <span class="folder-preview-icon">A</span>
+                                <span class="folder-preview-icon">B</span>
+                                <span class="folder-preview-icon">C</span>
+                                <span class="folder-preview-icon">D</span>
+                            </div>
+                        </div>
+                    </section>
                     <details class="sgroup" open>
                         <summary>Opening</summary>
                         <div class="sgroup-body">
@@ -392,6 +414,12 @@
                                 <label class="switch-row">
                                     <input type="checkbox" id="folderBlur">
                                     Blur what is behind the folder
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label class="switch-row">
+                                    <input type="checkbox" id="folderPanelBlur">
+                                    Blur the folder background
                                 </label>
                             </div>
                         </div>
@@ -902,7 +930,7 @@
 
                     <div class="about-box">
                         <p><strong>Privacy:</strong> Shortcuts, settings, and imported bookmarks stay on this device. To retrieve icons, shortcut origins may be sent over HTTPS to Google&rsquo;s favicon service. Dashboard Icons and Google Fonts are contacted only for features that use them. There is no analytics, advertising, tracking, account, or developer server.</p>
-                        <p><a href="https://github.com/fernando-granco/NewTab/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Privacy Policy</a> | <a href="https://github.com/fernando-granco/NewTab" target="_blank" rel="noopener noreferrer">GitHub</a> | Version 1.2.1</p>
+                        <p><a href="https://github.com/fernando-granco/NewTab/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Privacy Policy</a> | <a href="https://github.com/fernando-granco/NewTab" target="_blank" rel="noopener noreferrer">GitHub</a> | Version 1.2.2</p>
                         <p>Icons provided by <a href="https://dashboardicons.com/" target="_blank" rel="noopener noreferrer">Dashboard Icons</a> (Apache-2.0 License).</p>
                     </div>
                 </div>

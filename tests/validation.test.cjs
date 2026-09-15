@@ -77,6 +77,16 @@ test('site sanitization drops unsafe links and repairs duplicate IDs', () => {
     assert.notEqual(sites[0].id, sites[1].id);
 });
 
+test('folder-specific appearance overrides are retained and bounded', () => {
+    const [folder] = sanitizeSites([{
+        id: 'folder', type: 'folder', name: 'Work', children: [],
+        folderSettings: { folderOpacity: 5, folderIconScale: 200, folderPanelBlur: true }
+    }]);
+    assert.equal(folder.folderSettings.folderOpacity, 20);
+    assert.equal(folder.folderSettings.folderIconScale, 100);
+    assert.equal(folder.folderSettings.folderPanelBlur, true);
+});
+
 test('settings sanitization clamps layout and rejects hostile resources', () => {
     const result = sanitizeSettings({
         ...defaults,

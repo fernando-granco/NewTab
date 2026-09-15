@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "New Tab",
   "description": "A premium, highly customizable New Tab extension with a sleek design, shortcut management, and integrated search.",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "minimum_chrome_version": "104",
   "chrome_url_overrides": {
     "newtab": "newtab.html"

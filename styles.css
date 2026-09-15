@@ -815,7 +815,10 @@ input[type=checkbox] {
    the columns, each tile's width, and the label size that derives from it. */
 .folder-grid {
     --icon-size: var(--folder-icon-size);
-    grid-template-columns: repeat(auto-fit, var(--icon-size));
+    /* JS chooses a stable, near-square column count for the folder contents.
+       auto-fit changed its result while the popover was being measured, which
+       could turn four shortcuts into an uneven 3 + 1 layout. */
+    grid-template-columns: repeat(var(--folder-columns, 2), var(--icon-size));
     padding: 10px;
 }
 
@@ -1079,6 +1082,83 @@ input[type=checkbox] {
 
 /* Optional frosted backdrop behind an open folder. */
 #folderModal.folder-blur { backdrop-filter: blur(8px); }
+#folderModal .folder-modal-content.folder-panel-blur { backdrop-filter: blur(12px); }
+.folder-preview-panel.folder-panel-blur { backdrop-filter: blur(12px); }
+
+/* A compact representation of an open folder, kept in the Folders settings
+   so appearance changes can be judged without opening a real folder. */
+.folder-live-preview {
+    margin: 0 0 14px;
+    padding: 12px;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    background: var(--panel-alt, #1d1d1d);
+}
+
+.folder-settings-scope {
+    padding: 12px;
+    margin-bottom: 14px;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    background: var(--panel-alt, #1d1d1d);
+}
+
+.folder-preview-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.folder-preview-heading strong { font-size: 14px; }
+.folder-preview-heading span { color: #aaa; font-size: 12px; text-align: right; }
+
+.folder-preview-panel {
+    --folder-preview-icon-size: 42px;
+    --folder-preview-gap: 12px;
+    --folder-preview-padding: 12px;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 9px;
+    color: var(--panel-text, #fff);
+}
+
+.folder-preview-title {
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.folder-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, var(--folder-preview-icon-size));
+    gap: var(--folder-preview-gap);
+    padding: var(--folder-preview-padding);
+}
+
+.folder-preview-icon {
+    display: grid;
+    place-items: center;
+    width: var(--folder-preview-icon-size);
+    aspect-ratio: 1;
+    border-radius: var(--icon-radius, 50%);
+    background: var(--icon-bg-color, #fff);
+    color: #25324a;
+    font-size: calc(var(--folder-preview-icon-size) * 0.38);
+    font-weight: 700;
+}
+
+.folder-preview-panel.title-hidden .folder-preview-title { display: none; }
+.folder-preview-panel.title-bottom { display: flex; flex-direction: column-reverse; }
+.folder-preview-panel.title-bottom .folder-preview-title {
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-bottom: 0;
+}
 
 /* =====================================================================
    Settings panel — collapsible sections and tidier controls

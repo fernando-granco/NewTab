@@ -215,6 +215,24 @@ globalThis.NewTabData = (() => {
             };
         };
 
+        const sanitizeFolderSettings = (raw) => {
+            if (!isPlainObject(raw)) return undefined;
+            const clean = {};
+            const numeric = ['folderIconScale', 'folderCustomX', 'folderCustomY', 'folderCustomWidth',
+                'folderCustomHeight', 'folderPadding', 'folderGap', 'folderOpacity'];
+            numeric.forEach(key => {
+                if (typeof raw[key] === 'number' && Number.isFinite(raw[key])) {
+                    clean[key] = Math.round(clampNumber(raw[key], 0, NUMBER_RANGES[key]));
+                }
+            });
+            if (ENUM_SETTINGS.folderOpenStyle.includes(raw.folderOpenStyle)) clean.folderOpenStyle = raw.folderOpenStyle;
+            if (ENUM_SETTINGS.folderTitle.includes(raw.folderTitle)) clean.folderTitle = raw.folderTitle;
+            ['folderBlur', 'folderPanelBlur'].forEach(key => {
+                if (typeof raw[key] === 'boolean') clean[key] = raw[key];
+            });
+            return Object.keys(clean).length ? clean : undefined;
+        };
+
         const output = [];
         for (const raw of source.slice(0, MAX_TOP_LEVEL_ITEMS)) {
             if (!isPlainObject(raw)) continue;
@@ -225,14 +243,17 @@ globalThis.NewTabData = (() => {
                     const sanitized = sanitizeShortcut(child);
                     if (sanitized) children.push(sanitized);
                 }
-                output.push({
+                const folder = {
                     id: uniqueId(raw.id),
                     type: 'folder',
                     name: boundedString(raw.name, 'Folder', 120).trim() || 'Folder',
                     color: sanitizeColor(raw.color, '#ffffff'),
                     page: Math.round(clampNumber(raw.page, 0, [0, 7])),
                     children
-                });
+                };
+                const folderSettings = sanitizeFolderSettings(raw.folderSettings);
+                if (folderSettings) folder.folderSettings = folderSettings;
+                output.push(folder);
             } else {
                 const sanitized = sanitizeShortcut(raw);
                 if (sanitized) output.push(sanitized);

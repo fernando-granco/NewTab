@@ -2,7 +2,7 @@
 
 Effective date: September 1, 2026
 
-Applies to: New Tab version 1.2.1 and later
+Applies to: New Tab version 1.2.2 and later
 
 New Tab is designed to work without an account, analytics, advertising,
 tracking, or a developer-operated server. The developer does not receive or

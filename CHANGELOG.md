@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.2 - 2026-09-15
+
+- Fixed folder reflow so four shortcuts retain a stable 2 × 2 grid.
+- Added live folder previews and optional per-folder overrides for placement,
+  sizing, spacing, title position, opacity, and both backdrop and panel blur.
+- Fixed numeric setting fields so values can be entered without intermediate
+  keystrokes being clamped.
+
 ## 1.2.1 - 2026-09-01
 
 - Added multiple shortcut pages with per-page layouts, navigation arrows,

@@ -56,6 +56,7 @@ const defaultSettings = {
     folderTitle: 'top',       // 'top' | 'bottom' | 'hidden'
     folderOpacity: 100,       // folder panel background opacity, %
     folderBlur: false,        // frost the page behind an open folder
+    folderPanelBlur: false,   // frost the panel background itself
     // Page navigation arrows
     pageArrows: 'both',       // 'both' | 'left' | 'right' | 'none'
     pageArrowStyle: 'chevron',// 'chevron' | 'triangle' | 'circle' | 'square'
@@ -141,6 +142,12 @@ const {
 // State
 let sites = sanitizeSites(readStoredJson(localStorage, 'sites', defaultSites), defaultSites);
 let settings = sanitizeSettings(readStoredJson(localStorage, 'settings', defaultSettings), defaultSettings);
+let folderSettingsScope = '';
+const FOLDER_SETTING_KEYS = new Set([
+    'folderOpenStyle', 'folderIconScale', 'folderCustomX', 'folderCustomY',
+    'folderCustomWidth', 'folderCustomHeight', 'folderPadding', 'folderGap',
+    'folderTitle', 'folderOpacity', 'folderBlur', 'folderPanelBlur'
+]);
 const imageCache = {}; // Pre-load IDB images for synchronous rendering
 
 // Elements
@@ -324,6 +331,11 @@ const folderModal = document.getElementById('folderModal');
 const folderModalTitle = document.getElementById('folderModalTitle');
 const folderGrid = document.getElementById('folderGrid');
 const folderClose = document.getElementById('folderClose');
+const folderPreviewPanel = document.getElementById('folderPreviewPanel');
+const folderPreviewTitleBar = document.getElementById('folderPreviewTitleBar');
+const folderPreviewGrid = document.getElementById('folderPreviewGrid');
+const folderSettingsScopeInput = document.getElementById('folderSettingsScope');
+const folderPanelBlurInput = document.getElementById('folderPanelBlur');
 // Folder add/edit modal
 const folderEditModal = document.getElementById('folderEditModal');
 const folderEditForm = document.getElementById('folderEditForm');
@@ -1038,9 +1050,11 @@ function applySettings() {
     if (enableNumberKeysInput) enableNumberKeysInput.checked = settings.enableNumberKeys !== false;
     if (hotkeyScopeInput) hotkeyScopeInput.value = settings.hotkeyScope || 'universal';
     if (showHotkeyBadgeInput) showHotkeyBadgeInput.checked = settings.showHotkeyBadge !== false;
-    if (folderOpenStyleInput) folderOpenStyleInput.value = settings.folderOpenStyle || 'around';
-    if (folderTitleInput) folderTitleInput.value = settings.folderTitle || 'top';
-    if (folderBlurInput) folderBlurInput.checked = !!settings.folderBlur;
+    populateFolderSettingsScope();
+    if (folderOpenStyleInput) folderOpenStyleInput.value = folderValue('folderOpenStyle') || 'around';
+    if (folderTitleInput) folderTitleInput.value = folderValue('folderTitle') || 'top';
+    if (folderBlurInput) folderBlurInput.checked = !!folderValue('folderBlur');
+    if (folderPanelBlurInput) folderPanelBlurInput.checked = !!folderValue('folderPanelBlur');
     if (pageArrowsInput) pageArrowsInput.value = settings.pageArrows || 'both';
     if (pageArrowStyleInput) pageArrowStyleInput.value = settings.pageArrowStyle || 'chevron';
     if (pageArrowPositionInput) pageArrowPositionInput.value = settings.pageArrowPosition || 'edge';
@@ -1055,18 +1069,19 @@ function applySettings() {
     if (pageArrowOptions) pageArrowOptions.style.display = (settings.pageArrows === 'none') ? 'none' : 'block';
     renderPageArrows();
     // Keep every folder slider showing its saved value.
-    syncSliderPair('folderIconScale', settings.folderIconScale ?? 75);
-    syncSliderPair('folderPadding', settings.folderPadding ?? 20);
-    syncSliderPair('folderGap', settings.folderGap ?? 20);
-    syncSliderPair('folderOpacity', settings.folderOpacity ?? 100);
+    syncSliderPair('folderIconScale', folderValue('folderIconScale') ?? 75);
+    syncSliderPair('folderPadding', folderValue('folderPadding') ?? 20);
+    syncSliderPair('folderGap', folderValue('folderGap') ?? 20);
+    syncSliderPair('folderOpacity', folderValue('folderOpacity') ?? 100);
     syncSliderPair('pageArrowSize', settings.pageArrowSize ?? 40);
     syncSliderPair('pageArrowOpacity', settings.pageArrowOpacity ?? 45);
     syncSliderPair('pageArrowGap', settings.pageArrowGap ?? 16);
-    syncSliderPair('folderCustomX', settings.folderCustomX ?? 50);
-    syncSliderPair('folderCustomY', settings.folderCustomY ?? 50);
-    syncSliderPair('folderCustomWidth', settings.folderCustomWidth ?? 420);
-    syncSliderPair('folderCustomHeight', settings.folderCustomHeight ?? 320);
+    syncSliderPair('folderCustomX', folderValue('folderCustomX') ?? 50);
+    syncSliderPair('folderCustomY', folderValue('folderCustomY') ?? 50);
+    syncSliderPair('folderCustomWidth', folderValue('folderCustomWidth') ?? 420);
+    syncSliderPair('folderCustomHeight', folderValue('folderCustomHeight') ?? 320);
     updateFolderInputsDisplay();
+    updateFolderPreview();
     if (enableContextMenuInput) enableContextMenuInput.checked = settings.enableContextMenu !== false;
     if (confirmOpenAllInput) confirmOpenAllInput.checked = settings.confirmOpenAll !== false;
 
@@ -1331,7 +1346,7 @@ function familyFromGoogleFontsUrl(url) {
 function updateFolderInputsDisplay() {
     if (folderCustomGroup) {
         folderCustomGroup.style.display =
-            (settings.folderOpenStyle === 'custom') ? 'block' : 'none';
+            (folderValue('folderOpenStyle') === 'custom') ? 'block' : 'none';
     }
 }
 
@@ -1436,6 +1451,38 @@ function applyCustomCss() {
         document.head.appendChild(tag);
     }
     tag.textContent = css;
+}
+
+// Keep the Folders tab useful even when no real folder is open. This mirrors
+// the appearance settings without altering the user's shortcuts or page.
+function updateFolderPreview() {
+    if (!folderPreviewPanel) return;
+    const folder = selectedFolderForSettings();
+    const iconSize = Math.round(56 * ((folderValue('folderIconScale', folder) ?? 75) / 100));
+    const gap = Math.round(5 + (folderValue('folderGap', folder) ?? 20) / 5);
+    const padding = Math.round(6 + (folderValue('folderPadding', folder) ?? 20) / 5);
+    const alpha = (folderValue('folderOpacity', folder) ?? 100) / 100;
+    const titleMode = folderValue('folderTitle', folder) || 'top';
+
+    folderPreviewPanel.style.setProperty('--folder-preview-icon-size', `${iconSize}px`);
+    folderPreviewPanel.style.setProperty('--folder-preview-gap', `${gap}px`);
+    folderPreviewPanel.style.setProperty('--folder-preview-padding', `${padding}px`);
+    folderPreviewPanel.style.backgroundColor = rgbaFromHex(settings.panelBgColor || '#242424', alpha);
+    folderPreviewPanel.classList.toggle('title-hidden', titleMode === 'hidden');
+    folderPreviewPanel.classList.toggle('title-bottom', titleMode === 'bottom');
+    folderPreviewPanel.classList.toggle('title-top', titleMode === 'top');
+    folderPreviewPanel.classList.toggle('folder-panel-blur', !!folderValue('folderPanelBlur', folder));
+    if (folderPreviewTitleBar) folderPreviewTitleBar.textContent = folder ? folder.name : 'Example Folder';
+    if (folderPreviewGrid) {
+        const children = folder ? (folder.children || []) : [{}, {}, {}, {}];
+        folderPreviewGrid.style.gridTemplateColumns = `repeat(${folderColumnCount(children.length)}, var(--folder-preview-icon-size))`;
+        folderPreviewGrid.replaceChildren(...children.map((child, index) => {
+            const icon = document.createElement('span');
+            icon.className = 'folder-preview-icon';
+            icon.textContent = (child.name || String(index + 1)).trim().charAt(0).toUpperCase() || '•';
+            return icon;
+        }));
+    }
 }
 
 // =========================================================================
@@ -1552,8 +1599,44 @@ function layoutValue(key) {
     return settings[key];
 }
 
+function selectedFolderForSettings() {
+    return folderSettingsScope
+        ? sites.find(item => item && item.type === 'folder' && String(item.id) === String(folderSettingsScope))
+        : null;
+}
+
+function folderValue(key, folder = selectedFolderForSettings()) {
+    const overrides = folder && folder.folderSettings;
+    return overrides && overrides[key] !== undefined ? overrides[key] : settings[key];
+}
+
+function setFolderValue(key, value) {
+    const folder = selectedFolderForSettings();
+    if (!folder) { settings[key] = value; return; }
+    folder.folderSettings = folder.folderSettings || {};
+    folder.folderSettings[key] = value;
+}
+
+function populateFolderSettingsScope() {
+    if (!folderSettingsScopeInput) return;
+    const current = folderSettingsScope;
+    folderSettingsScopeInput.replaceChildren(new Option('All folders (default)', ''));
+    sites.filter(item => item && item.type === 'folder').forEach(folder => {
+        folderSettingsScopeInput.appendChild(new Option(folder.name, folder.id));
+    });
+    if (current && sites.some(item => item && item.type === 'folder' && String(item.id) === String(current))) {
+        folderSettingsScopeInput.value = current;
+    } else {
+        folderSettingsScope = '';
+    }
+}
+
 // Write a layout value to the global settings or to the page being edited.
 function setLayoutValue(key, value) {
+    if (FOLDER_SETTING_KEYS.has(key)) {
+        setFolderValue(key, value);
+        return;
+    }
     if (layoutScope !== 'global' && PAGE_LAYOUT_KEYS.includes(key)) {
         settings.pageOverrides = settings.pageOverrides || {};
         settings.pageOverrides[layoutScope] = settings.pageOverrides[layoutScope] || {};
@@ -1905,6 +1988,11 @@ function openFolder(folderId, tileEl) {
     folderModalTitle.textContent = folder.name;
     folderGrid.innerHTML = '';
     const children = folder.children || [];
+    folderGrid.style.setProperty('--folder-columns', folderColumnCount(children.length));
+    const toVmin = (value) => `${(value / 10.8).toFixed(2)}vmin`;
+    folderGrid.style.setProperty('--icon-size', toVmin(pageValue('iconSize') * (folderValue('folderIconScale', folder) ?? 75) / 100));
+    folderGrid.style.setProperty('--folder-padding', toVmin(folderValue('folderPadding', folder) ?? 20));
+    folderGrid.style.setProperty('--folder-gap', toVmin(folderValue('folderGap', folder) ?? 20));
     children.forEach(child => {
         const tile = buildShortcutTile(child);
         tile.addEventListener('contextmenu', (e) => openTileMenu(e, child));
@@ -1918,14 +2006,21 @@ function openFolder(folderId, tileEl) {
     }
 
     folderModal.style.display = 'flex';
-    placeFolderPanel(children.length, tileEl);
+    placeFolderPanel(folder, tileEl);
+}
+
+// Use a stable, near-square shape instead of allowing CSS auto-fit to change
+// the number of columns while the popover is being measured.
+function folderColumnCount(childCount) {
+    return Math.max(1, Math.ceil(Math.sqrt(Math.max(1, childCount))));
 }
 
 // Position the folder panel and set the origin its open animation grows from.
-function placeFolderPanel(childCount, tileEl) {
+function placeFolderPanel(folder, tileEl) {
     const panel = folderModal.querySelector('.modal-content');
     if (!panel) return;
-    const style = settings.folderOpenStyle || 'around';
+    const childCount = (folder.children || []).length;
+    const style = folderValue('folderOpenStyle', folder) || 'around';
     const nearIcon = (style === 'around' || style === 'anchored') && tileEl;
 
     // Always start from a clean slate so switching styles never leaves
@@ -1935,23 +2030,24 @@ function placeFolderPanel(childCount, tileEl) {
     folderModal.classList.toggle('anchored-mode', style !== 'center');
 
     // Folder name placement, panel translucency and optional backdrop blur.
-    const titleMode = settings.folderTitle || 'top';
+    const titleMode = folderValue('folderTitle', folder) || 'top';
     folderModal.classList.toggle('title-hidden', titleMode === 'hidden');
     folderModal.classList.toggle('title-bottom', titleMode === 'bottom');
-    folderModal.classList.toggle('folder-blur', !!settings.folderBlur);
-    const alpha = (settings.folderOpacity ?? 100) / 100;
+    folderModal.classList.toggle('folder-blur', !!folderValue('folderBlur', folder));
+    panel.classList.toggle('folder-panel-blur', !!folderValue('folderPanelBlur', folder));
+    const alpha = (folderValue('folderOpacity', folder) ?? 100) / 100;
     panel.style.backgroundColor = rgbaFromHex(settings.panelBgColor || '#242424', alpha); // matches --panel-bg
 
     if (style === 'custom') {
         // Fully user-placed: the icon is ignored, the panel opens at the size
         // and screen position chosen in Settings.
         const gap = 12;
-        const pw = Math.min(settings.folderCustomWidth ?? 420, window.innerWidth - gap * 2);
-        const ph = Math.min(settings.folderCustomHeight ?? 320, window.innerHeight - gap * 2);
+        const pw = Math.min(folderValue('folderCustomWidth', folder) ?? 420, window.innerWidth - gap * 2);
+        const ph = Math.min(folderValue('folderCustomHeight', folder) ?? 320, window.innerHeight - gap * 2);
         // X/Y are a percentage of the leftover space, so the panel can never
         // be pushed off screen no matter the size.
-        const left = gap + (window.innerWidth - pw - gap * 2) * ((settings.folderCustomX ?? 50) / 100);
-        const top = gap + (window.innerHeight - ph - gap * 2) * ((settings.folderCustomY ?? 50) / 100);
+        const left = gap + (window.innerWidth - pw - gap * 2) * ((folderValue('folderCustomX', folder) ?? 50) / 100);
+        const top = gap + (window.innerHeight - ph - gap * 2) * ((folderValue('folderCustomY', folder) ?? 50) / 100);
 
         panel.style.margin = '0';
         panel.style.width = `${pw}px`;
@@ -2010,13 +2106,13 @@ function placeFolderPanel(childCount, tileEl) {
     setTimeout(clearPop, 400);
 }
 
-// Width a folder popover needs for its shortcuts, up to 4 across. Measures the
+// Width a folder popover needs for its stable shortcut grid. Measures the
 // folder's own tiles, which are scaled by the "Icon Size in Folders" setting.
 function sizePanelToContents(panel, childCount) {
     const sample = folderGrid.querySelector('.icon-item') || grid.querySelector('.icon-item');
     const iconWidth = sample ? sample.offsetWidth : 100;
     const colGap = parseFloat(getComputedStyle(folderGrid).columnGap) || 20;
-    const cols = Math.max(1, Math.min(4, childCount || 1));
+    const cols = folderColumnCount(childCount);
     const padding = 60; // .modal-body (20px each side) + .folder-grid (10px each side)
     const width = cols * iconWidth + (cols - 1) * colGap + padding;
     panel.style.width = `${Math.min(width, window.innerWidth - 24)}px`;
@@ -2513,12 +2609,27 @@ function setupEventListeners() {
         };
 
         num.oninput = (e) => {
-            let val = isInt ? parseInt(e.target.value) : e.target.value;
-            if (isInt && !Number.isFinite(val)) return;
-            if (slider.min && val < parseInt(slider.min)) val = parseInt(slider.min);
-            if (slider.max && val > parseInt(slider.max)) val = parseInt(slider.max);
+            const val = isInt ? parseInt(e.target.value, 10) : e.target.value;
+            // Do not clamp a partial number. Typing 50 briefly creates "5";
+            // clamping that keystroke used to replace it with 20, so the final
+            // 0 was appended to the wrong value.
+            if (isInt && (!Number.isFinite(val)
+                || (slider.min && val < parseInt(slider.min, 10))
+                || (slider.max && val > parseInt(slider.max, 10)))) return;
             setLayoutValue(settingKey, val);
             slider.value = val;
+            applySettings();
+            debouncedSaveAndApply();
+        };
+
+        num.onchange = (e) => {
+            let val = isInt ? parseInt(e.target.value, 10) : e.target.value;
+            if (isInt && !Number.isFinite(val)) val = parseInt(slider.min || '0', 10);
+            if (isInt && slider.min && val < parseInt(slider.min, 10)) val = parseInt(slider.min, 10);
+            if (isInt && slider.max && val > parseInt(slider.max, 10)) val = parseInt(slider.max, 10);
+            setLayoutValue(settingKey, val);
+            slider.value = val;
+            num.value = val;
             applySettings();
             debouncedSaveAndApply();
         };
@@ -2529,13 +2640,17 @@ function setupEventListeners() {
             reset.onclick = () => {
                 // When editing one page, 'reset' drops its override so the page
                 // follows the global value again; otherwise restore the default.
-                if (layoutScope !== 'global' && PAGE_LAYOUT_KEYS.includes(settingKey)
+                const folder = selectedFolderForSettings();
+                if (FOLDER_SETTING_KEYS.has(settingKey) && folder && folder.folderSettings) {
+                    delete folder.folderSettings[settingKey];
+                    if (!Object.keys(folder.folderSettings).length) delete folder.folderSettings;
+                } else if (layoutScope !== 'global' && PAGE_LAYOUT_KEYS.includes(settingKey)
                     && settings.pageOverrides && settings.pageOverrides[layoutScope]) {
                     delete settings.pageOverrides[layoutScope][settingKey];
                 } else {
                     settings[settingKey] = defaultSettings[settingKey];
                 }
-                const val = layoutValue(settingKey);
+                const val = FOLDER_SETTING_KEYS.has(settingKey) ? folderValue(settingKey) : layoutValue(settingKey);
                 slider.value = val;
                 num.value = val;
                 applySettings();
@@ -2708,9 +2823,10 @@ function setupEventListeners() {
     if (showHotkeyBadgeInput) showHotkeyBadgeInput.onchange = (e) => { settings.showHotkeyBadge = e.target.checked; saveState(); renderGrid(); };
     if (folderOpenStyleInput) {
         folderOpenStyleInput.onchange = (e) => {
-            settings.folderOpenStyle = e.target.value;
+            setFolderValue('folderOpenStyle', e.target.value);
             saveState();
             updateFolderInputsDisplay();
+            updateFolderPreview();
         };
     }
     setupSync('folderIconScale', 'folderIconScaleValInput', 'folderIconScale');
@@ -2720,8 +2836,13 @@ function setupEventListeners() {
     setupSync('pageArrowSize', 'pageArrowSizeValInput', 'pageArrowSize');
     setupSync('pageArrowOpacity', 'pageArrowOpacityValInput', 'pageArrowOpacity');
     setupSync('pageArrowGap', 'pageArrowGapValInput', 'pageArrowGap');
-    if (folderTitleInput) folderTitleInput.onchange = (e) => { settings.folderTitle = e.target.value; saveState(); };
-    if (folderBlurInput) folderBlurInput.onchange = (e) => { settings.folderBlur = e.target.checked; saveState(); };
+    if (folderTitleInput) folderTitleInput.onchange = (e) => { setFolderValue('folderTitle', e.target.value); saveState(); updateFolderPreview(); };
+    if (folderBlurInput) folderBlurInput.onchange = (e) => { setFolderValue('folderBlur', e.target.checked); saveState(); updateFolderPreview(); };
+    if (folderPanelBlurInput) folderPanelBlurInput.onchange = (e) => { setFolderValue('folderPanelBlur', e.target.checked); saveState(); updateFolderPreview(); };
+    if (folderSettingsScopeInput) folderSettingsScopeInput.onchange = (e) => {
+        folderSettingsScope = e.target.value;
+        applySettings();
+    };
 
     // Page navigation
     if (pageArrowsInput) pageArrowsInput.onchange = (e) => { settings.pageArrows = e.target.value; saveState(); applySettings(); renderPageArrows(); };

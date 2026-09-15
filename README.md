@@ -2,7 +2,7 @@
 
 A clean, fast, and deeply customizable new-tab page for Chrome.
 
-Current release: **1.2.1**. Requires Chrome 104 or newer.
+Current release: **1.2.2**. Requires Chrome 104 or newer.
 
 New Tab turns the blank browser tab into a personal launchpad: your favorite
 sites, your layout, your background, your icons, and your search bar, all in one
@@ -33,7 +33,8 @@ tracking.
   the keyboard. Each page can even have its own icon size and grid layout.
 - **Folder styling** - Choose where folders open (around the icon, beside it,
   centered, or a fixed spot you pick), and set their icon size, padding,
-  spacing, name position, and background opacity.
+  spacing, name position, opacity, and blur. Apply settings to every folder or
+  override them for an individual folder, with a live preview in Settings.
 - **Drag and drop organization** - Reorder shortcuts, move items into folders,
   and keep your setup exactly how you like it.
 - **Native browser search** - Use the optional search bar with your browser's
