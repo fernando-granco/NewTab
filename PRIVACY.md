@@ -1,8 +1,8 @@
 # Privacy Policy for New Tab
 
-Effective date: September 15, 2026
+Effective date: September 17, 2026
 
-Applies to: New Tab version 1.2.2 and later
+Applies to: New Tab version 1.2.3 and later
 
 New Tab is designed to work without an account, analytics, advertising,
 tracking, or a developer-operated server. The developer does not receive or
@@ -37,15 +37,16 @@ replace the extension's local configuration.
 New Tab makes the following limited HTTPS requests to provide features visible
 to you:
 
-- **Google favicon service (`t2.gstatic.com`)**: for automatic shortcut icons,
-  the extension sends only the shortcut's origin (for example,
+- **Google favicon service (`t2.gstatic.com`)**: only after you enable
+  **Automatic Favicons** or save a shortcut using that opt-in source, the
+  extension sends only the shortcut's origin (for example,
   `https://example.com`). Paths, query strings, credentials, bookmark folder
   names, and shortcut labels are not included. Retrieved icons are cached
   locally.
-- **jsDelivr (`cdn.jsdelivr.net`)**: the extension downloads the open-source
-  Dashboard Icons index and individual image files when you choose or
-  auto-match those icons. No shortcut URL, bookmark data, or search text is
-  included in these requests.
+- **jsDelivr (`cdn.jsdelivr.net`)**: only after you enable **Dashboard Icons**
+  or choose that opt-in icon source, the extension downloads the open-source
+  Dashboard Icons index and individual image files. No shortcut URL, bookmark
+  data, or search text is included in these requests.
 - **Google Fonts (`fonts.googleapis.com` and `fonts.gstatic.com`)**: these hosts
   are contacted only after you enter a Google Fonts stylesheet URL. The chosen
   font is cached locally.
@@ -66,10 +67,13 @@ data to its requests.
 
 - `search` is used only to send a user-submitted query to Chrome's current
   default search provider.
-- `favicon` is used only as a local fallback for shortcut icons Chrome already
-  has on the device.
-- Host access to `t2.gstatic.com` and `cdn.jsdelivr.net` is used only to fetch
-  and cache the non-executable icon assets described above.
+- `favicon` is optional. It is requested only when you enable Automatic
+  Favicons or save a shortcut using that source, and is used only as a local
+  fallback for shortcut icons Chrome already has on the device.
+- Host access to `t2.gstatic.com` and `cdn.jsdelivr.net` is optional. Each
+  origin is requested only when you enable the corresponding icon feature, and
+  is used only to fetch and cache the non-executable icon assets described
+  above.
 - `bookmarks` is optional. It is requested only when you click **Load
   Bookmarks**, and it is used only to let you choose and import a bookmark
   folder. New Tab does not create, edit, or delete browser bookmarks.
@@ -87,10 +91,10 @@ including the Limited Use requirements.
 ## Your Choices and Deletion
 
 You can edit or delete shortcuts and settings inside the extension, reset the
-appearance settings, remove the optional bookmark permission from Chrome's
-extension settings, or uninstall New Tab. Uninstalling removes the extension's
-locally stored data according to Chrome's normal extension data handling. You
-control any backup files you previously exported.
+appearance settings, remove any optional bookmark or icon permission from
+Chrome's extension settings, or uninstall New Tab. Uninstalling removes the
+extension's locally stored data according to Chrome's normal extension data
+handling. You control any backup files you previously exported.
 
 ## Changes and Contact
 

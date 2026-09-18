@@ -160,6 +160,9 @@ const shortcutModal = document.getElementById('shortcutModal');
 const closeShortcut = document.getElementById('closeShortcut');
 const addShortcutBtn = document.getElementById('addShortcutBtn');
 const autoMatchIconsBtn = document.getElementById('autoMatchIconsBtn');
+const enableAutoFaviconsBtn = document.getElementById('enableAutoFaviconsBtn');
+const enableDashboardIconsBtn = document.getElementById('enableDashboardIconsBtn');
+const iconAccessStatus = document.getElementById('iconAccessStatus');
 const shortcutsList = document.getElementById('shortcutsList');
 const contentWrapper = document.getElementById('contentWrapper');
 
@@ -536,12 +539,109 @@ async function handleStorageMigrations() {
 //   4. A generated letter tile (the site's first letter on its color).
 //      Built in-memory, so it always works.
 //
-// Note: step 2 only works because manifest.json declares host_permissions
-// for the two icon hosts. Without that, the fetch is blocked by CORS and
-// the cache silently never fills (the original offline-icons bug).
+// The two network icon sources and Chrome's favicon store are optional. We
+// only use each source after the user has explicitly enabled it from Settings
+// (or while saving a shortcut that uses it). Cached images remain local and
+// continue to work even if access is later revoked.
 
 const FAV_PREFIX = 'favcache:';
 const inFlightIconFetches = new Set();
+const ICON_PERMISSION_REQUESTS = Object.freeze({
+    automatic: {
+        permissions: ['favicon'],
+        origins: ['https://t2.gstatic.com/*']
+    },
+    dashboard: {
+        origins: ['https://cdn.jsdelivr.net/*']
+    }
+});
+const iconPermissionState = {
+    chromeFavicon: false,
+    googleFavicon: false,
+    dashboard: false
+};
+
+function containsOptionalPermission(request) {
+    return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.permissions || !chrome.permissions.contains) {
+            resolve(false);
+            return;
+        }
+        chrome.permissions.contains(request, (granted) => {
+            if (chrome.runtime?.lastError) {
+                console.warn('Could not read optional permission state:', chrome.runtime.lastError.message);
+                resolve(false);
+                return;
+            }
+            resolve(granted === true);
+        });
+    });
+}
+
+function requestOptionalPermission(request) {
+    return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.permissions || !chrome.permissions.request) {
+            resolve(false);
+            return;
+        }
+        chrome.permissions.request(request, (granted) => {
+            if (chrome.runtime?.lastError) {
+                console.warn('Optional permission request failed:', chrome.runtime.lastError.message);
+                resolve(false);
+                return;
+            }
+            resolve(granted === true);
+        });
+    });
+}
+
+function updateIconAccessStatus() {
+    const automaticEnabled = iconPermissionState.chromeFavicon && iconPermissionState.googleFavicon;
+    if (enableAutoFaviconsBtn) {
+        enableAutoFaviconsBtn.textContent = automaticEnabled
+            ? 'Automatic Favicons Enabled'
+            : 'Enable Automatic Favicons';
+        enableAutoFaviconsBtn.disabled = automaticEnabled;
+    }
+    if (enableDashboardIconsBtn) {
+        enableDashboardIconsBtn.textContent = iconPermissionState.dashboard
+            ? 'Dashboard Icons Enabled'
+            : 'Enable Dashboard Icons';
+        enableDashboardIconsBtn.disabled = iconPermissionState.dashboard;
+    }
+    if (iconAccessStatus) {
+        const enabled = [];
+        if (automaticEnabled) enabled.push('Automatic Favicons');
+        if (iconPermissionState.dashboard) enabled.push('Dashboard Icons');
+        iconAccessStatus.textContent = enabled.length
+            ? `Enabled: ${enabled.join(' and ')}. Cached icons remain on this device.`
+            : 'No optional icon access is enabled.';
+    }
+}
+
+async function refreshIconPermissionState() {
+    const [chromeFavicon, googleFavicon, dashboard] = await Promise.all([
+        containsOptionalPermission({ permissions: ['favicon'] }),
+        containsOptionalPermission({ origins: ['https://t2.gstatic.com/*'] }),
+        containsOptionalPermission(ICON_PERMISSION_REQUESTS.dashboard)
+    ]);
+    iconPermissionState.chromeFavicon = chromeFavicon;
+    iconPermissionState.googleFavicon = googleFavicon;
+    iconPermissionState.dashboard = dashboard;
+    updateIconAccessStatus();
+}
+
+async function requestAutomaticFaviconAccess() {
+    const granted = await requestOptionalPermission(ICON_PERMISSION_REQUESTS.automatic);
+    await refreshIconPermissionState();
+    return granted && iconPermissionState.chromeFavicon && iconPermissionState.googleFavicon;
+}
+
+async function requestDashboardIconAccess() {
+    const granted = await requestOptionalPermission(ICON_PERMISSION_REQUESTS.dashboard);
+    await refreshIconPermissionState();
+    return granted && iconPermissionState.dashboard;
+}
 
 function getRemoteIconUrl(site) {
     if (site.iconSource === 'dashboardicons' && site.iconValue) {
@@ -611,14 +711,17 @@ function setShortcutIcon(img, site) {
 
     const remoteUrl = getRemoteIconUrl(site);
     const cached = remoteUrl ? imageCache[FAV_PREFIX + remoteUrl] : null;
-    const chromeFavicon = getChromeFaviconUrl(site.url);
+    const canLoadRemoteIcon = site.iconSource === 'dashboardicons'
+        ? iconPermissionState.dashboard
+        : iconPermissionState.googleFavicon;
+    const chromeFavicon = iconPermissionState.chromeFavicon ? getChromeFaviconUrl(site.url) : null;
     const fallbacks = [];
 
     if (cached) {
         fallbacks.push(createLetterTile(site));
         setIconFallbackChain(img, fallbacks);
         img.src = cached; // The happy path: instant, offline, high-res.
-    } else if (remoteUrl && navigator.onLine) {
+    } else if (remoteUrl && canLoadRemoteIcon && navigator.onLine) {
         if (chromeFavicon) fallbacks.push(chromeFavicon);
         fallbacks.push(createLetterTile(site));
         setIconFallbackChain(img, fallbacks);
@@ -639,6 +742,11 @@ function setShortcutIcon(img, site) {
 // Download a remote icon once and store it in IndexedDB as a data URL.
 // From then on the icon paints from disk, even with no internet.
 async function cacheRemoteIcon(cacheKey, url) {
+    const isGoogleFavicon = url.startsWith('https://t2.gstatic.com/');
+    const isDashboardIcon = url.startsWith('https://cdn.jsdelivr.net/');
+    if ((!isGoogleFavicon && !isDashboardIcon)
+        || (isGoogleFavicon && !iconPermissionState.googleFavicon)
+        || (isDashboardIcon && !iconPermissionState.dashboard)) return;
     if (imageCache[cacheKey] || inFlightIconFetches.has(cacheKey)) return;
     inFlightIconFetches.add(cacheKey);
     const controller = new AbortController();
@@ -700,6 +808,7 @@ function debounce(fn, ms = 80) {
 
 async function init() {
     setupEventListeners();
+    await refreshIconPermissionState();
 
     // Preload all locally-stored images (custom icons, background, cached
     // favicons) BEFORE the first paint. This lets us render the grid exactly
@@ -731,6 +840,13 @@ async function init() {
     // The moment the connection returns, repaint so the real icons load
     // (and get cached for the next offline session).
     window.addEventListener('online', renderGrid);
+    if (typeof chrome !== 'undefined' && chrome.permissions?.onAdded && chrome.permissions?.onRemoved) {
+        const refreshIconAccess = () => {
+            refreshIconPermissionState().then(renderGrid);
+        };
+        chrome.permissions.onAdded.addListener(refreshIconAccess);
+        chrome.permissions.onRemoved.addListener(refreshIconAccess);
+    }
     // The icon block moves when the window resizes, so re-place the arrows.
     window.addEventListener('resize', debounce(positionPageArrows, 60));
 
@@ -2195,6 +2311,9 @@ function handleDragEnd() {
 let dashboardIconIndex = null;
 
 async function getDashboardIconIndex() {
+    if (!iconPermissionState.dashboard) {
+        throw new Error('Dashboard Icons access has not been enabled.');
+    }
     if (dashboardIconIndex) return dashboardIconIndex;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -3178,8 +3297,36 @@ function setupEventListeners() {
         openShortcutModal();
     };
 
+    if (enableAutoFaviconsBtn) {
+        enableAutoFaviconsBtn.onclick = async () => {
+            enableAutoFaviconsBtn.disabled = true;
+            const granted = await requestAutomaticFaviconAccess();
+            if (!granted) {
+                alert('Automatic favicon access was not granted. Shortcuts will use cached, custom, or letter icons instead.');
+            }
+            updateIconAccessStatus();
+            renderGrid();
+        };
+    }
+
+    if (enableDashboardIconsBtn) {
+        enableDashboardIconsBtn.onclick = async () => {
+            enableDashboardIconsBtn.disabled = true;
+            const granted = await requestDashboardIconAccess();
+            if (!granted) {
+                alert('Dashboard Icons access was not granted. You can still use custom image URLs or uploaded icons.');
+            }
+            updateIconAccessStatus();
+            renderGrid();
+        };
+    }
+
     if (autoMatchIconsBtn) {
         autoMatchIconsBtn.onclick = async () => {
+            if (!iconPermissionState.dashboard && !await requestDashboardIconAccess()) {
+                alert('Dashboard Icons access is required to auto-match icons.');
+                return;
+            }
             const btn = autoMatchIconsBtn;
             const originalText = btn.textContent;
             btn.disabled = true;
@@ -3244,6 +3391,10 @@ function setupEventListeners() {
         matchThisIconBtn.onclick = async () => {
             const name = siteNameInput.value.trim();
             if (!name) { alert('Give the shortcut a name first.'); return; }
+            if (!iconPermissionState.dashboard && !await requestDashboardIconAccess()) {
+                alert('Dashboard Icons access is required to auto-match an icon.');
+                return;
+            }
             const originalText = matchThisIconBtn.textContent;
             matchThisIconBtn.disabled = true;
             matchThisIconBtn.textContent = 'Matching...';
@@ -3280,21 +3431,41 @@ function setupEventListeners() {
         e.preventDefault();
         const id = editIdInput.value || Date.now().toString();
         const existing = editIdInput.value ? findItemById(id).item : null;
+        const iconSource = iconSourceInput.value;
+        const url = normalizeShortcutUrl(siteUrlInput.value, true);
+        if (!url) {
+            alert('Enter a valid HTTP or HTTPS website address.');
+            return;
+        }
+
+        // Asking here follows a deliberate Save click. Do it before any file
+        // read so Chrome still considers it a direct user gesture.
+        if (iconSource === 'favicon'
+            && (!iconPermissionState.chromeFavicon || !iconPermissionState.googleFavicon)
+            && !await requestAutomaticFaviconAccess()) {
+            alert('Automatic favicon access was not granted. Choose a custom icon or enable it later in Settings.');
+            return;
+        }
+        if (iconSource === 'dashboardicons' && !iconPermissionState.dashboard
+            && !await requestDashboardIconAccess()) {
+            alert('Dashboard Icons access was not granted. Choose a custom icon or enable it later in Settings.');
+            return;
+        }
 
         let iconValue = '';
-        if (iconSourceInput.value === 'url') {
+        if (iconSource === 'url') {
             iconValue = normalizeHttpsResourceUrl(iconUrlInput.value);
             if (!iconValue) {
                 alert('Custom image URLs must use HTTPS.');
                 return;
             }
-        } else if (iconSourceInput.value === 'dashboardicons') {
+        } else if (iconSource === 'dashboardicons') {
             iconValue = iconDashboardInput.value.trim().toLowerCase();
             if (!/^[a-z0-9][a-z0-9._-]{0,99}$/i.test(iconValue)) {
                 alert('Enter a valid DashboardIcons name.');
                 return;
             }
-        } else if (iconSourceInput.value === 'file' && iconFileInput.files[0]) {
+        } else if (iconSource === 'file' && iconFileInput.files[0]) {
             try {
                 const dataUrl = await readFileAsDataURL(iconFileInput.files[0], 'image', 10 * 1024 * 1024);
                 iconValue = await resizeImage(dataUrl, 256);
@@ -3302,14 +3473,8 @@ function setupEventListeners() {
                 alert(error.message);
                 return;
             }
-        } else if (existing && existing.iconSource === iconSourceInput.value) {
+        } else if (existing && existing.iconSource === iconSource) {
             iconValue = existing.iconValue; // keep the current icon when it didn't change
-        }
-
-        const url = normalizeShortcutUrl(siteUrlInput.value, true);
-        if (!url) {
-            alert('Enter a valid HTTP or HTTPS website address.');
-            return;
         }
 
         const targetFolder = siteFolderInput ? siteFolderInput.value : '';
@@ -3318,7 +3483,7 @@ function setupEventListeners() {
             name: siteNameInput.value.trim().slice(0, 120),
             url: url,
             color: siteColorInput.value,
-            iconSource: iconSourceInput.value,
+            iconSource: iconSource,
             iconValue: iconValue,
             excludeFromOpenAll: !!excludeFromOpenAllInput.checked,
             hotkey: siteHotkeyInput ? siteHotkeyInput.value : '',

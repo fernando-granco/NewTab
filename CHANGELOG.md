@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.3 - 2026-09-17
+
+- Made automatic favicons, Dashboard Icons, and Chrome's local favicon
+  fallback opt-in permissions instead of install-time access.
+- Added clear in-app controls and status for optional icon access.
+- Kept cached icons local and available offline after optional access is
+  revoked.
+
 ## 1.2.2 - 2026-09-15
 
 - Fixed folder reflow so four shortcuts retain a stable 2 × 2 grid.

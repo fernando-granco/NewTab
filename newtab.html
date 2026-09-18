@@ -884,6 +884,18 @@
                     </div>
                     <button id="autoMatchIconsBtn" class="primary-btn" style="background-color: #f57c00;">Auto-Match All Icons</button>
 
+                    <details class="sgroup" style="margin-top: 18px;">
+                        <summary>Optional icon access</summary>
+                        <div class="sgroup-body">
+                            <p class="hint" style="margin-top: 0;">Icons stay local by default. Enable only the icon service you want to use; Chrome will show its own permission prompt and you can revoke access at any time in Chrome&rsquo;s extension settings.</p>
+                            <div class="action-row icon-access-actions">
+                                <button type="button" id="enableAutoFaviconsBtn" class="primary-btn">Enable Automatic Favicons</button>
+                                <button type="button" id="enableDashboardIconsBtn" class="primary-btn" style="background-color: #455a64;">Enable Dashboard Icons</button>
+                            </div>
+                            <p class="hint" id="iconAccessStatus" aria-live="polite"></p>
+                        </div>
+                    </details>
+
                     <div id="shortcutsList" class="shortcuts-list"></div>
 
                     <details class="sgroup" style="margin-top: 18px;">
@@ -960,8 +972,8 @@
                     <div class="form-group">
                         <label>Icon Source</label>
                         <select id="iconSource">
-                            <option value="favicon">Auto Favicon</option>
-                            <option value="dashboardicons">DashboardIcons</option>
+                            <option value="favicon">Auto Favicon (optional access)</option>
+                            <option value="dashboardicons">DashboardIcons (optional access)</option>
                             <option value="url">Custom Image URL</option>
                             <option value="file">Upload Image</option>
                         </select>

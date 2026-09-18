@@ -41,6 +41,15 @@ const defaults = {
     pageOverrides: {}
 };
 
+test('favicon and icon hosts are opt-in permissions', () => {
+    const manifest = require('../manifest.json');
+    assert.ok(manifest.optional_permissions.includes('favicon'));
+    assert.ok(manifest.optional_host_permissions.includes('https://t2.gstatic.com/*'));
+    assert.ok(manifest.optional_host_permissions.includes('https://cdn.jsdelivr.net/*'));
+    assert.ok(!manifest.permissions.includes('favicon'));
+    assert.equal(manifest.host_permissions, undefined);
+});
+
 test('shortcut URLs only allow ordinary web navigation', () => {
     assert.equal(normalizeShortcutUrl('example.com', true), 'https://example.com/');
     assert.equal(normalizeShortcutUrl('javascript:alert(1)'), null);
