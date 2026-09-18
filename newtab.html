@@ -965,6 +965,23 @@
         </div>
     </div>
 
+    <div id="iconAccessConfirmModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="iconAccessConfirmTitle">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2 id="iconAccessConfirmTitle">Enable optional icon access?</h2>
+                <button type="button" class="close" id="closeIconAccessConfirm" aria-label="Cancel">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="iconAccessConfirmText" style="line-height: 1.55; color: #ccc;"></p>
+                <p class="hint">Chrome will show its own permission prompt next. You can revoke this access later in Settings &gt; Data.</p>
+                <div class="action-row icon-access-actions">
+                    <button type="button" id="cancelIconAccessConfirm" class="ghost-btn">Cancel</button>
+                    <button type="button" id="confirmIconAccess" class="primary-btn">Continue to Chrome Prompt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Add/Edit Shortcut Modal -->
     <div id="shortcutModal" class="modal">
         <div class="modal-content">

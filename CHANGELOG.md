@@ -10,6 +10,8 @@
 - Moved icon access controls to Data, added a Shortcuts link to them, and added
   a per-feature Revoke control plus a plain-language explanation before each
   Chrome permission prompt.
+- Made that explanation an in-app confirmation so its Continue button reliably
+  preserves the user gesture Chrome requires for the native permission prompt.
 
 ## 1.2.2 - 2026-09-15
 
