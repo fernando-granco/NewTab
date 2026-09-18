@@ -91,11 +91,10 @@ including the Limited Use requirements.
 ## Your Choices and Deletion
 
 You can edit or delete shortcuts and settings inside the extension, reset the
-appearance settings, revoke either optional icon feature in **Settings > Data**,
-remove any optional bookmark or icon permission from Chrome's extension
-settings, or uninstall New Tab. Uninstalling removes the extension's locally
-stored data according to Chrome's normal extension data handling. You control
-any backup files you previously exported.
+appearance settings, remove any optional bookmark or icon permission from
+Chrome's extension settings, or uninstall New Tab. Uninstalling removes the
+extension's locally stored data according to Chrome's normal extension data
+handling. You control any backup files you previously exported.
 
 ## Changes and Contact
 

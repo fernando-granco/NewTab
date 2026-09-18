@@ -883,8 +883,18 @@
                         <button id="addFolderBtn" class="primary-btn" style="background-color: #455a64;">Add Folder</button>
                     </div>
                     <button id="autoMatchIconsBtn" class="primary-btn" style="background-color: #f57c00;">Auto-Match All Icons</button>
-                    <button type="button" id="openIconAccessBtn" class="ghost-btn full" style="margin-top: 12px;">Manage optional icon access in Data &rarr;</button>
-                    <p class="hint">Automatic Favicons and Dashboard Icons are optional. Manage or revoke them in Data.</p>
+
+                    <details class="sgroup" style="margin-top: 18px;">
+                        <summary>Optional icon access</summary>
+                        <div class="sgroup-body">
+                            <p class="hint" style="margin-top: 0;">Icons stay local by default. Enable only the icon service you want to use; Chrome will show its own permission prompt and you can revoke access at any time in Chrome&rsquo;s extension settings.</p>
+                            <div class="action-row icon-access-actions">
+                                <button type="button" id="enableAutoFaviconsBtn" class="primary-btn">Enable Automatic Favicons</button>
+                                <button type="button" id="enableDashboardIconsBtn" class="primary-btn" style="background-color: #455a64;">Enable Dashboard Icons</button>
+                            </div>
+                            <p class="hint" id="iconAccessStatus" aria-live="polite"></p>
+                        </div>
+                    </details>
 
                     <div id="shortcutsList" class="shortcuts-list"></div>
 
@@ -920,30 +930,6 @@
                         </div>
                     </details>
 
-                    <details id="iconAccessDetails" class="sgroup" open>
-                        <summary>Optional icon access</summary>
-                        <div class="sgroup-body">
-                            <p class="hint" style="margin-top: 0;">New Tab starts without access to icon services. Before Chrome&rsquo;s permission prompt appears, this page explains exactly what each choice does. You can revoke access here at any time; cached icons stay on this device.</p>
-                            <div class="setting-item">
-                                <label>Automatic Favicons</label>
-                                <p class="hint" style="margin-top: 0;">Allows a shortcut&rsquo;s origin to be sent to Google&rsquo;s favicon service and uses Chrome&rsquo;s local favicon cache as an offline fallback.</p>
-                                <div class="action-row icon-access-actions">
-                                    <button type="button" id="enableAutoFaviconsBtn" class="primary-btn">Enable Automatic Favicons</button>
-                                    <button type="button" id="disableAutoFaviconsBtn" class="ghost-btn">Revoke</button>
-                                </div>
-                            </div>
-                            <div class="setting-item">
-                                <label>Dashboard Icons</label>
-                                <p class="hint" style="margin-top: 0;">Allows access to jsDelivr only for the open-source Dashboard Icons index and image files.</p>
-                                <div class="action-row icon-access-actions">
-                                    <button type="button" id="enableDashboardIconsBtn" class="primary-btn" style="background-color: #455a64;">Enable Dashboard Icons</button>
-                                    <button type="button" id="disableDashboardIconsBtn" class="ghost-btn">Revoke</button>
-                                </div>
-                            </div>
-                            <p class="hint" id="iconAccessStatus" aria-live="polite"></p>
-                        </div>
-                    </details>
-
                     <details class="sgroup">
                         <summary>Reset</summary>
                         <div class="sgroup-body">
@@ -955,8 +941,8 @@
                     </details>
 
                     <div class="about-box">
-                        <p><strong>Privacy:</strong> Shortcuts, settings, and imported bookmarks stay on this device. Automatic Favicons and Dashboard Icons are opt-in; shortcut origins may be sent over HTTPS to Google&rsquo;s favicon service only after you enable that feature. There is no analytics, advertising, tracking, account, or developer server.</p>
-                        <p><a href="https://github.com/fernando-granco/NewTab/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Privacy Policy</a> | <a href="https://github.com/fernando-granco/NewTab" target="_blank" rel="noopener noreferrer">GitHub</a> | Version 1.2.3</p>
+                        <p><strong>Privacy:</strong> Shortcuts, settings, and imported bookmarks stay on this device. To retrieve icons, shortcut origins may be sent over HTTPS to Google&rsquo;s favicon service. Dashboard Icons and Google Fonts are contacted only for features that use them. There is no analytics, advertising, tracking, account, or developer server.</p>
+                        <p><a href="https://github.com/fernando-granco/NewTab/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Privacy Policy</a> | <a href="https://github.com/fernando-granco/NewTab" target="_blank" rel="noopener noreferrer">GitHub</a> | Version 1.2.2</p>
                         <p>Icons provided by <a href="https://dashboardicons.com/" target="_blank" rel="noopener noreferrer">Dashboard Icons</a> (Apache-2.0 License).</p>
                     </div>
                 </div>

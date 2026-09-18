@@ -7,9 +7,6 @@
 - Added clear in-app controls and status for optional icon access.
 - Kept cached icons local and available offline after optional access is
   revoked.
-- Moved icon access controls to Data, added a Shortcuts link to them, and added
-  a per-feature Revoke control plus a plain-language explanation before each
-  Chrome permission prompt.
 
 ## 1.2.2 - 2026-09-15
 

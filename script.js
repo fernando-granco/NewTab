@@ -160,13 +160,9 @@ const shortcutModal = document.getElementById('shortcutModal');
 const closeShortcut = document.getElementById('closeShortcut');
 const addShortcutBtn = document.getElementById('addShortcutBtn');
 const autoMatchIconsBtn = document.getElementById('autoMatchIconsBtn');
-const openIconAccessBtn = document.getElementById('openIconAccessBtn');
 const enableAutoFaviconsBtn = document.getElementById('enableAutoFaviconsBtn');
-const disableAutoFaviconsBtn = document.getElementById('disableAutoFaviconsBtn');
 const enableDashboardIconsBtn = document.getElementById('enableDashboardIconsBtn');
-const disableDashboardIconsBtn = document.getElementById('disableDashboardIconsBtn');
 const iconAccessStatus = document.getElementById('iconAccessStatus');
-const iconAccessDetails = document.getElementById('iconAccessDetails');
 const shortcutsList = document.getElementById('shortcutsList');
 const contentWrapper = document.getElementById('contentWrapper');
 
@@ -599,32 +595,6 @@ function requestOptionalPermission(request) {
     });
 }
 
-function removeOptionalPermission(request) {
-    return new Promise((resolve) => {
-        if (typeof chrome === 'undefined' || !chrome.permissions || !chrome.permissions.remove) {
-            resolve(false);
-            return;
-        }
-        chrome.permissions.remove(request, (removed) => {
-            if (chrome.runtime?.lastError) {
-                console.warn('Optional permission removal failed:', chrome.runtime.lastError.message);
-                resolve(false);
-                return;
-            }
-            resolve(removed === true);
-        });
-    });
-}
-
-function explainOptionalIconAccess(kind) {
-    const automatic = kind === 'automatic';
-    const title = automatic ? 'Enable Automatic Favicons?' : 'Enable Dashboard Icons?';
-    const purpose = automatic
-        ? "This lets New Tab send only each shortcut's origin (for example, https://example.com) to Google's favicon service and read Chrome's local favicon cache as an offline fallback. Paths, queries, labels, and bookmarks are not sent."
-        : 'This lets New Tab contact jsDelivr only to download the open-source Dashboard Icons index and the icon images you select or auto-match. Shortcut URLs and bookmark data are not sent.';
-    return confirm(`${title}\n\n${purpose}\n\nChrome will now show its own permission prompt. You can revoke this later in Settings > Data.`);
-}
-
 function updateIconAccessStatus() {
     const automaticEnabled = iconPermissionState.chromeFavicon && iconPermissionState.googleFavicon;
     if (enableAutoFaviconsBtn) {
@@ -633,17 +603,11 @@ function updateIconAccessStatus() {
             : 'Enable Automatic Favicons';
         enableAutoFaviconsBtn.disabled = automaticEnabled;
     }
-    if (disableAutoFaviconsBtn) {
-        disableAutoFaviconsBtn.disabled = !iconPermissionState.chromeFavicon && !iconPermissionState.googleFavicon;
-    }
     if (enableDashboardIconsBtn) {
         enableDashboardIconsBtn.textContent = iconPermissionState.dashboard
             ? 'Dashboard Icons Enabled'
             : 'Enable Dashboard Icons';
         enableDashboardIconsBtn.disabled = iconPermissionState.dashboard;
-    }
-    if (disableDashboardIconsBtn) {
-        disableDashboardIconsBtn.disabled = !iconPermissionState.dashboard;
     }
     if (iconAccessStatus) {
         const enabled = [];
@@ -668,29 +632,15 @@ async function refreshIconPermissionState() {
 }
 
 async function requestAutomaticFaviconAccess() {
-    if (!explainOptionalIconAccess('automatic')) return false;
     const granted = await requestOptionalPermission(ICON_PERMISSION_REQUESTS.automatic);
     await refreshIconPermissionState();
     return granted && iconPermissionState.chromeFavicon && iconPermissionState.googleFavicon;
 }
 
 async function requestDashboardIconAccess() {
-    if (!explainOptionalIconAccess('dashboard')) return false;
     const granted = await requestOptionalPermission(ICON_PERMISSION_REQUESTS.dashboard);
     await refreshIconPermissionState();
     return granted && iconPermissionState.dashboard;
-}
-
-async function revokeAutomaticFaviconAccess() {
-    const removed = await removeOptionalPermission(ICON_PERMISSION_REQUESTS.automatic);
-    await refreshIconPermissionState();
-    return removed;
-}
-
-async function revokeDashboardIconAccess() {
-    const removed = await removeOptionalPermission(ICON_PERMISSION_REQUESTS.dashboard);
-    await refreshIconPermissionState();
-    return removed;
 }
 
 function getRemoteIconUrl(site) {
@@ -2747,17 +2697,13 @@ function setupEventListeners() {
     };
 
     // Tabs
-    const activateSettingsTab = (tabId) => {
-        const button = [...tabBtns].find(btn => btn.dataset.tab === tabId);
-        const content = document.getElementById(tabId);
-        if (!button || !content) return;
-        tabBtns.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(tab => tab.classList.remove('active'));
-        button.classList.add('active');
-        content.classList.add('active');
-    };
     tabBtns.forEach(btn => {
-        btn.onclick = () => activateSettingsTab(btn.dataset.tab);
+        btn.onclick = () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab).classList.add('active');
+        };
     });
 
     // Debounced save for rapid-fire inputs (sliders, color pickers)
@@ -3351,16 +3297,6 @@ function setupEventListeners() {
         openShortcutModal();
     };
 
-    if (openIconAccessBtn) {
-        openIconAccessBtn.onclick = () => {
-            activateSettingsTab('backup');
-            if (iconAccessDetails) {
-                iconAccessDetails.open = true;
-                iconAccessDetails.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        };
-    }
-
     if (enableAutoFaviconsBtn) {
         enableAutoFaviconsBtn.onclick = async () => {
             enableAutoFaviconsBtn.disabled = true;
@@ -3373,15 +3309,6 @@ function setupEventListeners() {
         };
     }
 
-    if (disableAutoFaviconsBtn) {
-        disableAutoFaviconsBtn.onclick = async () => {
-            disableAutoFaviconsBtn.disabled = true;
-            const removed = await revokeAutomaticFaviconAccess();
-            if (!removed) alert('Automatic favicon access could not be removed. Try again from Chrome\'s extension settings.');
-            renderGrid();
-        };
-    }
-
     if (enableDashboardIconsBtn) {
         enableDashboardIconsBtn.onclick = async () => {
             enableDashboardIconsBtn.disabled = true;
@@ -3390,15 +3317,6 @@ function setupEventListeners() {
                 alert('Dashboard Icons access was not granted. You can still use custom image URLs or uploaded icons.');
             }
             updateIconAccessStatus();
-            renderGrid();
-        };
-    }
-
-    if (disableDashboardIconsBtn) {
-        disableDashboardIconsBtn.onclick = async () => {
-            disableDashboardIconsBtn.disabled = true;
-            const removed = await revokeDashboardIconAccess();
-            if (!removed) alert('Dashboard Icons access could not be removed. Try again from Chrome\'s extension settings.');
             renderGrid();
         };
     }
