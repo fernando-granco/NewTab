@@ -2,7 +2,7 @@
 
 A clean, fast, and deeply customizable new-tab page for Chrome.
 
-Current release: **1.2.3**. Requires Chrome 104 or newer.
+Current release: **1.2.2**. Requires Chrome 104 or newer.
 
 New Tab turns the blank browser tab into a personal launchpad: your favorite
 sites, your layout, your background, your icons, and your search bar, all in one
@@ -84,12 +84,10 @@ stored in your Chrome profile. Bookmark access is optional and begins only when
 you click **Load Bookmarks**.
 
 The extension makes limited HTTPS requests for user-facing features. Automatic
-favicons and Dashboard Icons are opt-in: the extension asks Chrome for the
-relevant optional access only after you enable that feature. Automatic favicon
-retrieval sends only a shortcut's origin (never its path or query) to Google's
-favicon service. Google Fonts and user-specified image hosts are contacted only
-when those features are used. Search text is sent by Chrome directly to the
-user's existing default search provider.
+favicon retrieval sends only a shortcut's origin (never its path or query) to
+Google's favicon service. Dashboard Icons, Google Fonts, and user-specified
+image hosts are contacted only when those features are used. Search text is
+sent by Chrome directly to the user's existing default search provider.
 
 See the full [Privacy Policy](PRIVACY.md) for data handling, permissions, third
 parties, and deletion details.
@@ -118,12 +116,12 @@ Icons are provided by the open-source Dashboard Icons project under Apache-2.0.
 
 See [CHANGELOG.md](CHANGELOG.md).
 
-## Chrome Web Store — 1.2.3 Update
+## Chrome Web Store — 1.2.2 Update
 
-Automatic favicons, Dashboard Icons, and Chrome's local favicon fallback are
-now optional. The extension starts without icon host access; it asks only when
-you enable the relevant icon feature or save a shortcut that uses it. Existing
-cached icons remain local and work offline.
+This release makes folders easier to organize and personalize: their shortcut
+grid stays stable, Settings shows a live preview, and any folder can override
+the default placement, size, spacing, title, opacity, and blur. No new
+permissions are requested in version 1.2.2.
 
 ## License
 
