@@ -167,12 +167,6 @@ const enableDashboardIconsBtn = document.getElementById('enableDashboardIconsBtn
 const disableDashboardIconsBtn = document.getElementById('disableDashboardIconsBtn');
 const iconAccessStatus = document.getElementById('iconAccessStatus');
 const iconAccessDetails = document.getElementById('iconAccessDetails');
-const iconAccessConfirmModal = document.getElementById('iconAccessConfirmModal');
-const iconAccessConfirmTitle = document.getElementById('iconAccessConfirmTitle');
-const iconAccessConfirmText = document.getElementById('iconAccessConfirmText');
-const closeIconAccessConfirm = document.getElementById('closeIconAccessConfirm');
-const cancelIconAccessConfirm = document.getElementById('cancelIconAccessConfirm');
-const confirmIconAccess = document.getElementById('confirmIconAccess');
 const shortcutsList = document.getElementById('shortcutsList');
 const contentWrapper = document.getElementById('contentWrapper');
 
@@ -622,61 +616,13 @@ function removeOptionalPermission(request) {
     });
 }
 
-const ICON_ACCESS_EXPLANATIONS = Object.freeze({
-    automatic: {
-        title: 'Enable Automatic Favicons?',
-        text: "This lets New Tab send only each shortcut's origin (for example, https://example.com) to Google's favicon service and read Chrome's local favicon cache as an offline fallback. Paths, queries, labels, and bookmarks are not sent.",
-        request: ICON_PERMISSION_REQUESTS.automatic,
-        enabled: () => iconPermissionState.chromeFavicon && iconPermissionState.googleFavicon
-    },
-    dashboard: {
-        title: 'Enable Dashboard Icons?',
-        text: 'This lets New Tab contact jsDelivr only to download the open-source Dashboard Icons index and the icon images you select or auto-match. Shortcut URLs and bookmark data are not sent.',
-        request: ICON_PERMISSION_REQUESTS.dashboard,
-        enabled: () => iconPermissionState.dashboard
-    }
-});
-let pendingIconAccessConfirmation = null;
-
-function dismissIconAccessConfirmation() {
-    if (!pendingIconAccessConfirmation) return;
-    const pending = pendingIconAccessConfirmation;
-    pendingIconAccessConfirmation = null;
-    if (iconAccessConfirmModal) iconAccessConfirmModal.style.display = 'none';
-    pending.resolve(false);
-}
-
-function askForOptionalIconAccess(kind) {
-    const details = ICON_ACCESS_EXPLANATIONS[kind];
-    if (!details) return Promise.resolve(false);
-    if (!iconAccessConfirmModal || !confirmIconAccess) {
-        // This fallback still requests directly from the caller's click.
-        return requestOptionalPermission(details.request);
-    }
-    return new Promise((resolve) => {
-        pendingIconAccessConfirmation = { ...details, resolve };
-        iconAccessConfirmTitle.textContent = details.title;
-        iconAccessConfirmText.textContent = details.text;
-        confirmIconAccess.disabled = false;
-        iconAccessConfirmModal.style.display = 'flex';
-        confirmIconAccess.focus();
-    });
-}
-
-function confirmOptionalIconAccess() {
-    const pending = pendingIconAccessConfirmation;
-    if (!pending) return;
-    pendingIconAccessConfirmation = null;
-    if (iconAccessConfirmModal) iconAccessConfirmModal.style.display = 'none';
-    confirmIconAccess.disabled = true;
-
-    // This runs synchronously from the modal's Continue click. That preserves
-    // the user gesture Chrome requires for chrome.permissions.request.
-    const permissionRequest = requestOptionalPermission(pending.request);
-    permissionRequest.then(async (granted) => {
-        await refreshIconPermissionState();
-        pending.resolve(granted && pending.enabled());
-    });
+function explainOptionalIconAccess(kind) {
+    const automatic = kind === 'automatic';
+    const title = automatic ? 'Enable Automatic Favicons?' : 'Enable Dashboard Icons?';
+    const purpose = automatic
+        ? "This lets New Tab send only each shortcut's origin (for example, https://example.com) to Google's favicon service and read Chrome's local favicon cache as an offline fallback. Paths, queries, labels, and bookmarks are not sent."
+        : 'This lets New Tab contact jsDelivr only to download the open-source Dashboard Icons index and the icon images you select or auto-match. Shortcut URLs and bookmark data are not sent.';
+    return confirm(`${title}\n\n${purpose}\n\nChrome will now show its own permission prompt. You can revoke this later in Settings > Data.`);
 }
 
 function updateIconAccessStatus() {
@@ -722,11 +668,17 @@ async function refreshIconPermissionState() {
 }
 
 async function requestAutomaticFaviconAccess() {
-    return askForOptionalIconAccess('automatic');
+    if (!explainOptionalIconAccess('automatic')) return false;
+    const granted = await requestOptionalPermission(ICON_PERMISSION_REQUESTS.automatic);
+    await refreshIconPermissionState();
+    return granted && iconPermissionState.chromeFavicon && iconPermissionState.googleFavicon;
 }
 
 async function requestDashboardIconAccess() {
-    return askForOptionalIconAccess('dashboard');
+    if (!explainOptionalIconAccess('dashboard')) return false;
+    const granted = await requestOptionalPermission(ICON_PERMISSION_REQUESTS.dashboard);
+    await refreshIconPermissionState();
+    return granted && iconPermissionState.dashboard;
 }
 
 async function revokeAutomaticFaviconAccess() {
@@ -2750,13 +2702,9 @@ function setupEventListeners() {
         renderThemeUI();
     };
     closeSettings.onclick = () => settingsModal.style.display = 'none';
-    if (closeIconAccessConfirm) closeIconAccessConfirm.onclick = dismissIconAccessConfirmation;
-    if (cancelIconAccessConfirm) cancelIconAccessConfirm.onclick = dismissIconAccessConfirmation;
-    if (confirmIconAccess) confirmIconAccess.onclick = confirmOptionalIconAccess;
 
     window.onclick = (e) => {
         if (e.target === settingsModal) settingsModal.style.display = 'none';
-        if (e.target === iconAccessConfirmModal) dismissIconAccessConfirmation();
         if (e.target === shortcutModal) shortcutModal.style.display = 'none';
         if (e.target === folderModal) folderModal.style.display = 'none';
         if (e.target === folderEditModal) folderEditModal.style.display = 'none';
