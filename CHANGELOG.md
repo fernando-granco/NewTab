@@ -2,6 +2,9 @@
 
 ## 1.2.2 - 2026-09-15
 
+This release makes folders easier to organize and personalize. No new
+permissions are requested.
+
 - Fixed folder reflow so four shortcuts retain a stable 2 × 2 grid.
 - Added live folder previews and optional per-folder overrides for placement,
   sizing, spacing, title position, opacity, and both backdrop and panel blur.
