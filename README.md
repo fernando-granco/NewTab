@@ -123,7 +123,8 @@ See [CHANGELOG.md](CHANGELOG.md).
 Automatic favicons, Dashboard Icons, and Chrome's local favicon fallback are
 now optional. The extension starts without icon host access; it asks only when
 you enable the relevant icon feature or save a shortcut that uses it. Existing
-cached icons remain local and work offline.
+cached icons remain local and work offline. Data settings explain each request
+before Chrome's prompt and let you revoke either icon feature at any time.
 
 ## License
 

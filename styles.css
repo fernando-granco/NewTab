@@ -1272,6 +1272,8 @@ input[type=checkbox] {
 .action-row .primary-btn { flex: 1; margin-top: 0; }
 
 .icon-access-actions { margin-top: 12px; }
+.icon-access-actions > button { flex: 1; }
+.icon-access-actions .ghost-btn { margin-top: 0; }
 
 .about-box {
     margin-top: 24px;
