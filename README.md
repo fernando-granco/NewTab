@@ -1,5 +1,7 @@
 # New Tab
 
+[![CI](https://github.com/fernando-granco/NewTab/actions/workflows/ci.yml/badge.svg)](https://github.com/fernando-granco/NewTab/actions/workflows/ci.yml)
+
 A clean, fast, and deeply customizable new-tab page for Chrome.
 
 Current release: **1.2.2**. Requires Chrome 104 or newer.
