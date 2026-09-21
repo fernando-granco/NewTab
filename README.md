@@ -1,6 +1,7 @@
 # New Tab
 
 [![CI](https://github.com/fernando-granco/NewTab/actions/workflows/ci.yml/badge.svg)](https://github.com/fernando-granco/NewTab/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-345a51.svg)](LICENSE)
 
 A clean, fast, and deeply customizable new-tab page for Chrome.
 
